@@ -73,7 +73,17 @@ function extractTextFromDataObj(data) {
   }
   if (Array.isArray(data.choices)) {
     for (const ch of data.choices) {
-      if (ch.message && ch.message.content) str += ch.message.content;
+      if (ch.message && ch.message.content) {
+        // بعض الموديلات تعيد محتوى مصفوفة: [{type:'text', text:'...'}]
+        if (Array.isArray(ch.message.content)) {
+          for (const part of ch.message.content) {
+            if (typeof part === 'string') str += part;
+            else if (part && typeof part === 'object' && part.text) str += part.text;
+          }
+        } else {
+          str += ch.message.content;
+        }
+      }
       if (ch.delta && ch.delta.content) str += ch.delta.content;
     }
   }
@@ -328,9 +338,14 @@ export function startTextRefinement(){ runBatchAiTask('refine'); }
  * استدعاء OpenRouter chat/completions — يعيد النص المستخرج خاماً.
  * (مُصدَّرة كي تعيد الوحدات الأخرى استخدامها، مثل enhance.js — تحسين AI.
  *  executeOpenRouterRequest تغلّفها بتحليل JSON كما كان تماماً — سلوك مطابق).
+ *
+ * التوافق: كثير من موديلات OpenRouter (Gemini وغيره) لا تدعم
+ * response_format json_object وترفض الطلب بـ 400 — لذلك نحاول أولاً
+ * مع response_format، وإذا فشل الطلب نُعيد المحاولة تلقائياً بدونه
+ * (محلّل JSON يتسامح مع أي إخراج عبر parseResponseJSON/extractBalancedObject).
  */
 export async function chatCompletion(promptData, model, apiKey){
-  const res = await apiRequest('OPENROUTER_CHAT', {
+  const buildOpts = (withJsonMode) => ({
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -344,20 +359,30 @@ export async function chatCompletion(promptData, model, apiKey){
         { role: 'system', content: promptData.systemPrompt },
         { role: 'user',   content: promptData.userPrompt }
       ],
-      response_format: { type: 'json_object' },
+      response_format: withJsonMode ? { type: 'json_object' } : undefined,
       temperature: 0.3,
       max_tokens: 8192
     })
   });
 
-  if(!res.ok){
-    let errMsg = `HTTP ${res.status}`;
-    try { const d = await res.json(); errMsg = d?.error?.message || d?.error || errMsg; } catch(_){}
-    throw new Error(errMsg);
-  }
+  const doRequest = async (withJsonMode) => {
+    const res = await apiRequest('OPENROUTER_CHAT', buildOpts(withJsonMode));
+    if(!res.ok){
+      let errMsg = `HTTP ${res.status}`;
+      try { const d = await res.json(); errMsg = d?.error?.message || d?.error || errMsg; } catch(_){}
+      throw new Error(errMsg);
+    }
+    const rawText = await res.text();
+    return extractTranslationText(rawText);
+  };
 
-  const rawText = await res.text();
-  return extractTranslationText(rawText);
+  try {
+    return await doRequest(true);
+  } catch(err){
+    // نموذج لا يدعم json_object → إعادة محاولة بدون response_format
+    console.warn('[OpenRouter] retry without response_format:', err.message);
+    return await doRequest(false);
+  }
 }
 
 async function executeOpenRouterRequest(promptData, model, apiKey){
