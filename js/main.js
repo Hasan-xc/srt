@@ -46,6 +46,10 @@ import { initAutosave } from './autosave.js';
 import { initHistory, undoHistory, redoHistory } from './history.js';
 import { initGlossary, toggleGlossary, addGlossaryPair, removeGlossaryPair } from './glossary.js';
 import { startAiEnhance } from './enhance.js';
+import {
+  toggleDrawer, closeDrawer, openDrawer, saveProjectAs, openProject,
+  deleteProject, clearAllProjects, initProjects, renderProjectsList
+} from './projects.js';
 
 /* ═══════════════════════════════════════
    تعريض الدوال لمعالجات HTML الضمنية
@@ -77,7 +81,10 @@ const globalApi = {
   undoHistory, redoHistory, dlVTT,
   toggleGlossary, addGlossaryPair, removeGlossaryPair,
   // تحسين بـ AI
-  startAiEnhance
+  startAiEnhance,
+  // القائمة الجانبية للمسودات والمشاريع
+  toggleDrawer, closeDrawer, openDrawer, saveProjectAs, openProject,
+  deleteProject, clearAllProjects
 };
 
 Object.assign(window, globalApi);
@@ -118,4 +125,5 @@ window.addEventListener('DOMContentLoaded', () => {
   try { initAutosave(); } catch(e) { console.warn('autosave init:', e); }
   try { initHistory(); } catch(e) { console.warn('history init:', e); }
   try { initGlossary(); } catch(e) { console.warn('glossary init:', e); }
+  try { initProjects(); } catch(e) { console.warn('projects init:', e); }
 });

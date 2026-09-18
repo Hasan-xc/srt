@@ -13,7 +13,10 @@
 <div class="page">
 
 <header>
-  <div class="badge"><span class="bdot"></span>تفريغ صوتي + تحسين + ترجمة آلية للعربية</div>
+  <div class="header-top">
+    <button type="button" class="drawer-btn" id="drawerBtn" onclick="toggleDrawer()">📑 مشاريعي</button>
+    <div class="badge"><span class="bdot"></span>تفريغ صوتي + تحسين + ترجمة آلية للعربية</div>
+  </div>
   <h1><em>التفريغ الصوتي</em> <span>والترجمة الذكية</span></h1>
   <p class="sub">Groq Whisper + OpenRouter / Kie.ai (GPT-5.6 & Gemini 2.5)</p>
 </header>
@@ -22,7 +25,7 @@
   <div class="card-head"><span class="card-title">📋 الصق النص أو SRT هنا</span></div>
   <textarea id="pasteArea" placeholder="الصق هنا أي نص أو ملف SRT..." oninput="onPA()"></textarea>
   <div class="card-foot">
-    <label class="upload-lbl">📂 رفع ملف<input type="file" id="fileIn" accept=".srt,.txt"></label>
+    <label class="upload-lbl">📂 رفع ملف<input type="file" id="fileIn" accept=".srt,.vtt,.ass,.ssa,.sbv,.sub,.lrc,.txt"></label>
     <button class="proc-btn" id="procBtn" onclick="processInput()" disabled>✦ تحميل وتعديل في المحرر</button>
   </div>
 </div>
@@ -239,9 +242,12 @@
         <button class="close-vid-btn" onclick="removeVideo()" title="إغلاق الفيديو">✕</button>
         <video id="mainVideo" preload="metadata" playsinline onclick="togglePlay()"></video>
         <div class="timer-overlay" id="timerOv">00:00:00</div>
-        
+        <div id="vidBufferNote"></div>
+
         <div class="sub-overlay" id="subOv"><div class="sub-text" id="subTextDom">معاينة الترجمة هنا</div></div>
-        
+
+        <div class="center-ripple" id="centerRipple"><span id="centerRippleIco">▶</span></div>
+
         <div class="vid-overlay-controls">
           <button class="skip-btn-ov left-skip" onclick="skipVid(-5); event.stopPropagation()">
             <span class="skip-icon">◀</span>
@@ -252,7 +258,7 @@
             <span class="skip-lbl">+5ث</span>
           </button>
         </div>
-        
+
         <div class="bottom-prog-ctrls">
           <div class="progress-wrap" id="progWrap">
             <div class="progress-fill" id="progFill"></div><div class="progress-thumb" id="progThumb"></div>
@@ -386,6 +392,23 @@
       </div>
     </div>
   </div>
+</div>
+
+<!-- ═══ القائمة الجانبية للمشاريع (Drawer) ═══ -->
+<div class="projects-overlay" id="projectsDrawer">
+  <aside class="projects-drawer" id="projectsDrawerBox">
+    <div class="projects-head">
+      <span style="font-size:16px">📑</span>
+      <span class="projects-title">المسودات والمشاريع</span>
+      <button class="btn b-ghost b-sm" onclick="closeDrawer()">✕</button>
+    </div>
+    <div class="projects-sub">تُحفظ النصوص والتوقيتات فقط في متصفحك (لا يُخزن الفيديو أبداً — حماية لمساحة التخزين)</div>
+    <div class="projects-list" id="projectsList"></div>
+    <div class="projects-foot">
+      <button class="btn b-pu" style="flex:1" onclick="saveProjectAs()">💾 حفظ كمشروع جديد</button>
+      <button class="btn b-red b-sm" style="flex:0 0 auto" onclick="clearAllProjects()">🗑️ تفريغ الكل</button>
+    </div>
+  </aside>
 </div>
 
 <div class="toast" id="toast"><span id="tIco">✅</span><span id="tMsg">تم</span></div>

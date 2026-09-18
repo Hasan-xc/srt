@@ -191,21 +191,28 @@ YOUR MISSION — return subtitles as if a professional human subtitle specialist
    - Do NOT change the speaker's meaning or tone.
    - Remove only obvious transcription noise (stutters/false starts) if present.
 
-4. SEGMENTATION (very important):
+4. SEGMENTATION (very important — Netflix/BBC subtitle standards):
    - A subtitle must be instantly readable while watching — NEVER a long paragraph.
-   - If a subtitle contains two or more independent sentences, split them into separate subtitles at natural, meaningful boundaries.
-   - Split based on MEANING, sentence structure and reading speed — never randomly, never mid-phrase, never between connected words.
+   - Keep each line within 37-42 characters per line (CPL). If a subtitle's text exceeds it, split it into separate subtitles at natural, meaningful boundaries.
+   - Break long sentences at punctuation or at Arabic conjunctions ("و", "لكن", "لأن", "عندما", "ثم", "حتى") — never mid-phrase, never between connected words, never randomly.
+   - Split based on MEANING, sentence structure and reading speed.
    - Result: short, comfortable, natural subtitles.
 
-5. TIMING (very important):
+5. DUAL-SPEAKER DIALOGUE (very important):
+   - If one subtitle contains speech from TWO different speakers (a question and its answer, an exchange), you MUST split it into two separate subtitles, each starting with a dialogue dash "- ":
+     "- هل فهمت ما أقصد؟"
+     "- نعم، بالتأكيد."
+   - Each speaker's line gets its own subtitle with its share of the time window.
+
+6. TIMING (very important):
    - When you split item i into N parts, redistribute its time window [s..e] logically across the parts, proportional to text length and reading speed.
    - Return ABSOLUTE milliseconds, same clock as the input.
    - For every part: start < end. Parts of the same item must not overlap. Keep chronological order.
    - You may slightly extend the last part into the free gap after the item (if the next item starts later), but never beyond (next item start - 50ms).
 
-6. STRUCTURE: every output segment must reference the ORIGINAL item number in "i". Do NOT merge two different original items into one segment. Do NOT reorder. Items with empty text are skipped (no segments).
+7. STRUCTURE: every output segment must reference the ORIGINAL item number in "i". Do NOT merge two different original items into one segment. Do NOT reorder. Items with empty text are skipped (no segments).
 
-7. COVERAGE: the result must cover ALL items listed under CURRENT SUBTITLES (each item gets one or more segments, in order).${glossaryRule}
+8. COVERAGE: the result must cover ALL items listed under CURRENT SUBTITLES (each item gets one or more segments, in order).${glossaryRule}
 
 OUTPUT FORMAT — ONLY a valid JSON object, no markdown, no comments:
 {"subs":[{"i":12,"s":10000,"e":12500,"t":"مرحباً يا أصدقاء."},{"i":12,"s":12500,"e":16000,"t":"اليوم سنتحدث عن التسجيل."}]}`;
@@ -387,23 +394,20 @@ export function proportionalLayout(S, endCap, texts){
 }
 
 /**
- * يكتب أجزاء السطر: الجزء الأول في البلوك نفسه، والباقي أسطراً جديدة
- * تُدرج بعده مباشرة (ترقيم العرض والتصدير يتجدد تلقائياً).
+ * يكتب أجزاء السطر — التقسيم الموضعي المتتالي (In-Place Sequential Split):
+ * استبدال السطر الأصلي بأجزائه مباشرة في نفس الموضع عبر
+ * splice(index, 1, ...newBlocks) — يُمنع منعاً باتاً إلحاق الأجزاء
+ * في نهاية المصفوفة أو أسفل القائمة. ترقيم العرض والتصدير يتجدد تلقائياً.
  */
 function writeParts(block, parts){
-  block.text = parts[0].t;
-  block.start = formatMs(parts[0].s);
-  block.end = formatMs(parts[0].e);
-  let added = 0;
-  for(let k = 1; k < parts.length; k++){
-    const pos = state.blocks.indexOf(block);
-    state.blocks.splice(pos + k, 0, {
-      id: ++state.uid,
-      start: formatMs(parts[k].s),
-      end: formatMs(parts[k].e),
-      text: parts[k].t
-    });
-    added++;
-  }
-  return added;
+  const idx = state.blocks.indexOf(block);
+  if(idx === -1) return 0;
+  const newBlocks = parts.map(p => ({
+    id: ++state.uid,
+    start: formatMs(p.s),
+    end: formatMs(p.e),
+    text: p.t
+  }));
+  state.blocks.splice(idx, 1, ...newBlocks);
+  return newBlocks.length - 1;
 }
