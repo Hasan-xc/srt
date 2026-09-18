@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0b0d12">
+<title>محرر وتفريغ SRT المباشر - Groq Whisper + OpenRouter / Kie.ai</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="page">
+
+<header>
+  <div class="badge"><span class="bdot"></span>تفريغ صوتي + تحسين + ترجمة آلية للعربية</div>
+  <h1><em>التفريغ الصوتي</em> <span>والترجمة الذكية</span></h1>
+  <p class="sub">Groq Whisper + OpenRouter / Kie.ai (GPT-5.6 & Gemini 2.5)</p>
+</header>
+
+<div class="card" id="inputCard">
+  <div class="card-head"><span class="card-title">📋 الصق النص أو SRT هنا</span></div>
+  <textarea id="pasteArea" placeholder="الصق هنا أي نص أو ملف SRT..." oninput="onPA()"></textarea>
+  <div class="card-foot">
+    <label class="upload-lbl">📂 رفع ملف<input type="file" id="fileIn" accept=".srt,.txt"></label>
+    <button class="proc-btn" id="procBtn" onclick="processInput()" disabled>✦ تحميل وتعديل في المحرر</button>
+  </div>
+</div>
+
+<!-- ── AI PANEL ── -->
+<div id="aiPanel">
+  <div class="ai-head" onclick="toggleAiBody()">
+    <span style="font-size:18px">🤖</span>
+    <span class="ai-head-title">محركات الذكاء الاصطناعي — تفريغ، تدقيق، وترجمة</span>
+    <span style="font-size:12px;color:var(--t2)" id="aiHeadArrow">▼</span>
+  </div>
+  <div class="ai-body" id="aiBody" style="display:none">
+
+    <!-- ═══ القسم الأول: التفريغ الصوتي (Groq) ═══ -->
+    <div style="font-size:12px;font-weight:700;color:var(--pu);margin-bottom:6px">🎙️ 1) التفريغ الصوتي — Groq Whisper</div>
+    <div style="margin-bottom:4px;font-size:11px;color:var(--t2)">🔑 Groq API Key (من console.groq.com)</div>
+    <div class="ai-key-row">
+      <input type="password" class="ai-key-in" id="aiKeyIn" placeholder="gsk_..." oninput="checkAiReady()">
+      <button class="ai-key-save" onclick="saveApiKey()">💾 حفظ</button>
+    </div>
+    
+    <div class="ai-drop" id="aiDrop" onclick="document.getElementById('aiFileIn').click()">
+      <input type="file" id="aiFileIn" accept="video/*,audio/*" style="display:none">
+      <span class="ai-drop-icon">🎵</span>
+      <div class="ai-drop-title" id="aiDropTxt">ارفع فيديو أو ملف صوتي هنا</div>
+      <div class="ai-drop-sub">تقسيم ذكي حسب الحجم (~18MB لكل جزء) لتفادي أي أخطاء في الشبكة</div>
+    </div>
+    
+    <div class="ai-quality-box" id="aiQualityBox">
+      <div class="ai-quality-lbl">🎚️ جودة الصوت المستخرج من الفيديو</div>
+      <label class="ai-quality-opt">
+        <input type="radio" name="aiAudioQuality" value="128" checked onchange="onAudioQualityChange(128)">
+        <span>128 kbps <small>(موصى به)</small></span>
+      </label>
+      <label class="ai-quality-opt">
+        <input type="radio" name="aiAudioQuality" value="96" onchange="onAudioQualityChange(96)">
+        <span>96 kbps <small>(حجم أصغر)</small></span>
+      </label>
+    </div>
+
+    <div class="ai-extract-box" id="aiExtractBox">
+      <div class="ai-extract-status" id="aiExtractStatus">🎬 جاري استخراج الصوت...</div>
+      <div class="ai-prog-bar-wrap"><div class="ai-prog-bar" id="aiExtractBar" style="width:0%"></div></div>
+      <div class="ai-extract-size" id="aiExtractSizeInfo"></div>
+      <div class="ai-extract-actions" id="aiExtractActions">
+        <button class="btn" onclick="aiPlayExtracted()">▶ تشغيل</button>
+        <button class="btn" onclick="aiDownloadExtracted()">⬇ تحميل الصوت</button>
+      </div>
+      <button class="ai-extract-cancel" id="aiExtractCancelBtn" onclick="cancelExtraction()">✕ إلغاء</button>
+    </div>
+
+    <div class="ai-opts-row">
+      <select class="ai-select" id="whisperModelSel" onchange="saveWhisperModel()">
+        <option value="whisper-large-v3-turbo" selected>⚡ سريع (Whisper Large V3 Turbo)</option>
+        <option value="whisper-large-v3">🎯 دقيق (Whisper Large V3 الأصلي)</option>
+      </select>
+
+      <select class="ai-select" id="aiLangIn">
+        <option value="auto">🌐 لغة الصوت: تعرف تلقائي</option>
+        <option value="tr" selected>🇹🇷 تركي</option>
+        <option value="ar">🇸🇦 عربي</option>
+        <option value="en">🇺🇸 إنجليزي</option>
+        <option value="es">🇪🇸 إسباني</option>
+        <option value="fr">🇫🇷 فرنسي</option>
+        <option value="de">🇩🇪 ألماني</option>
+        <option value="ru">🇷🇺 روسي</option>
+        <option value="ur">🇵🇰 أوردو</option>
+        <option value="hi">🇮🇳 هندي</option>
+        <option value="ja">🇯🇵 ياباني</option>
+        <option value="zh">🇨🇳 صيني</option>
+      </select>
+    </div>
+
+    <div class="ai-controls" id="ctrlStartBox">
+      <button class="ai-run-btn" id="aiRunBtn" onclick="startAi()" disabled>
+        <span>✨</span><span>بدء التفريغ الصوتي (SRT)</span>
+      </button>
+    </div>
+    <div class="ai-controls" id="ctrlPauseBox" style="display:none;">
+      <button class="ai-pause-btn" onclick="pauseAi()">
+        <span>⏸️</span><span>إيقاف مؤقت</span>
+      </button>
+    </div>
+    <div class="ai-controls" id="ctrlResumeBox" style="display:none;">
+      <button class="btn b-green" style="flex:1" onclick="resumeAi()">
+        <span>▶️</span><span>إكمال</span>
+      </button>
+      <button class="btn b-red" style="flex:1" onclick="cancelAi()">
+        <span>⏹️</span><span>إلغاء</span>
+      </button>
+    </div>
+    
+    <div class="ai-progress" id="aiProgress">
+      <div class="ai-prog-status" id="aiProgStatus">جاري المعالجة...</div>
+      <div class="ai-prog-bar-wrap"><div class="ai-prog-bar" id="aiProgBar"></div></div>
+    </div>
+
+    <!-- ═══ فاصل ═══ -->
+    <div class="section-divider" data-label="AI TOOLS & TRANSLATION"></div>
+
+    <!-- ═══ القسم الثاني: الترجمة وتحسين النص ═══ -->
+    <div style="font-size:12px;font-weight:700;color:var(--or);margin-bottom:6px">🌍 2) الترجمة الذكية وتدقيق النصوص</div>
+
+    <div class="provider-toggle">
+      <button type="button" class="provider-btn active" id="provBtnOR" onclick="setTrProvider('openrouter')">🟣 OpenRouter</button>
+      <button type="button" class="provider-btn" id="provBtnKie" onclick="setTrProvider('kie')">🔷 Kie.ai — GPT-5.6</button>
+    </div>
+
+    <!-- ── قاموس المصطلحات الثابتة ── -->
+    <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center">
+      <button type="button" class="btn b-pu b-sm" onclick="toggleGlossary()">📖 قاموس المصطلحات</button>
+      <span style="font-size:10px;color:var(--t3)">يُلزِم الموديل بترجمات ثابتة للمصطلحات المضافة عند الترجمة فقط</span>
+    </div>
+
+    <!-- ── OpenRouter ── -->
+    <div id="orBlock">
+      <div style="margin-bottom:4px;font-size:11px;color:var(--t2)">🔑 OpenRouter API Key (من openrouter.ai/keys)</div>
+      <div class="ai-key-row">
+        <input type="password" class="ai-key-in" id="orKeyIn" placeholder="sk-or-v1-..." oninput="checkTrReady()">
+        <button class="ai-key-save or" onclick="saveOrApiKey()">💾 حفظ</button>
+      </div>
+    </div>
+
+    <!-- ── Kie.ai ── -->
+    <div id="kieBlock" style="display:none">
+      <div style="margin-bottom:4px;font-size:11px;color:var(--t2)">🔑 Kie.ai API Key (من kie.ai/api-key)</div>
+      <div class="ai-key-row">
+        <input type="password" class="ai-key-in" id="kieKeyIn" placeholder="kie_..." oninput="checkTrReady()">
+        <button class="ai-key-save or" onclick="saveKieApiKey()">💾 حفظ</button>
+      </div>
+      <div style="margin:6px 0 4px;font-size:10px;color:var(--t3)">نقطة الاتصال الموحدة (Endpoint URL)</div>
+      <div class="ai-key-row">
+        <input type="text" class="ai-key-in" id="kieBaseUrl" style="direction:ltr" value="https://api.kie.ai/codex/v1/responses">
+      </div>
+      
+      <div class="kie-test-box">
+        <span style="font-size:11px;color:var(--t2)">🛠️ اختبار الجاهزية:</span>
+        <button type="button" class="btn b-blue b-sm" id="kieTestBtn" onclick="testKieConnection()">⚡ اختبار الاتصال بـ Kie.ai</button>
+      </div>
+    </div>
+
+    <div class="ai-opts-row">
+      <select class="ai-select" id="trSrcLang">
+        <option value="auto">🔍 لغة المصدر: كشف تلقائي</option>
+        <option value="Turkish" selected>🇹🇷 من التركية</option>
+        <option value="English">🇺🇸 من الإنجليزية</option>
+        <option value="Spanish">🇪🇸 من الإسبانية</option>
+        <option value="French">🇫🇷 من الفرنسية</option>
+        <option value="German">🇩🇪 من الألمانية</option>
+        <option value="Russian">🇷🇺 من الروسية</option>
+        <option value="Urdu">🇵🇰 من الأوردو</option>
+        <option value="Hindi">🇮🇳 من الهندية</option>
+      </select>
+
+      <select class="ai-select" id="trDialect" onchange="saveDialectPref()">
+        <option value="fusha" selected>📖 عربية فصحى</option>
+        <option value="shami">🇸🇾 عربية سورية / شامية</option>
+        <option value="masri">🇪🇬 عربية مصرية</option>
+      </select>
+
+      <select class="ai-select" id="trModel">
+        <option value="google/gemini-2.5-flash-lite" selected>⚡ Gemini 2.5 Flash Lite</option>
+        <option value="google/gemini-2.5-flash-lite-preview-09-2025">🧪 Gemini 2.5 Flash Lite (Preview)</option>
+        <option value="google/gemini-2.5-flash">💎 Gemini 2.5 Flash (أدق)</option>
+        <option value="google/gemini-2.0-flash-lite-001">🔹 Gemini 2.0 Flash Lite</option>
+        <option value="stealth/ox-alpha">🕶️ Stealth Ox Alpha</option>
+      </select>
+      <select class="ai-select" id="trModelKie" style="display:none">
+        <option value="gpt-5-6-luna" selected>⚡ GPT-5.6 Luna (سريع واقتصادي)</option>
+        <option value="gpt-5-6-terra">💠 GPT-5.6 Terra (متوازن)</option>
+        <option value="gpt-5-6-sol">💎 GPT-5.6 Sol (الأدق)</option>
+        <option value="gpt-5-4">🔹 GPT-5.4</option>
+      </select>
+    </div>
+
+    <div class="ai-controls" id="trStartBox">
+      <button class="tr-run-btn" id="trRunBtn" onclick="startTranslation()" disabled style="flex:1">
+        <span>🌍</span><span>ترجمة جميع الأسطر</span>
+      </button>
+    </div>
+    <div class="ai-controls" id="trStopBox" style="display:none;">
+      <button class="btn b-red" style="flex:1;min-height:44px" onclick="cancelAiTask()">
+        <span>⏹️</span><span>إيقاف العملية</span>
+      </button>
+    </div>
+
+    <div class="ai-progress" id="trProgress">
+      <div class="tr-prog-status" id="trProgStatus">جاري المعالجة...</div>
+      <div class="ai-prog-bar-wrap"><div class="tr-prog-bar" id="trProgBar"></div></div>
+    </div>
+
+  </div>
+</div>
+
+<div id="vidUploadBar"><button class="btn b-ghost" style="width:100%" onclick="showVidSec()">🎥 إضافة فيديو للمشاهدة والمزامنة</button></div>
+
+<!-- ═══════════════════════════════════════
+   VIDEO PLAYER & LIVE STYLING BAR
+═══════════════════════════════════════ -->
+<div id="vidSec">
+  <div class="vid-card">
+    <div id="vidDrop" class="vid-drop" onclick="document.getElementById('vidFileIn').click()">
+      <input type="file" id="vidFileIn" accept="video/*"><span style="font-size:22px">🎥</span>
+      <div style="font-weight:700;font-size:12px;margin-top:2px">ارفع الفيديو للمشاهدة مع الترجمة</div>
+    </div>
+    <div id="playerWrap" style="display:none">
+      <div class="player-container" id="playerCont">
+        <button class="close-vid-btn" onclick="removeVideo()" title="إغلاق الفيديو">✕</button>
+        <video id="mainVideo" preload="metadata" playsinline onclick="togglePlay()"></video>
+        <div class="timer-overlay" id="timerOv">00:00:00</div>
+        
+        <div class="sub-overlay" id="subOv"><div class="sub-text" id="subTextDom">معاينة الترجمة هنا</div></div>
+        
+        <div class="vid-overlay-controls">
+          <button class="skip-btn-ov left-skip" onclick="skipVid(-5); event.stopPropagation()">
+            <span class="skip-icon">◀</span>
+            <span class="skip-lbl">-5ث</span>
+          </button>
+          <button class="skip-btn-ov right-skip" onclick="skipVid(5); event.stopPropagation()">
+            <span class="skip-icon">▶</span>
+            <span class="skip-lbl">+5ث</span>
+          </button>
+        </div>
+        
+        <div class="bottom-prog-ctrls">
+          <div class="progress-wrap" id="progWrap">
+            <div class="progress-fill" id="progFill"></div><div class="progress-thumb" id="progThumb"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="style-bar-toggle" onclick="toggleStylePanel()">
+        <span style="font-size:11px;font-weight:700;color:var(--t2)">🎨 تخصيص مظهر الترجمة على الفيديو</span>
+        <span style="font-size:10px;color:var(--t2)" id="styleToggleIco">⚙️ إعدادات المظهر ▼</span>
+      </div>
+      <div class="style-panel" id="stylePanel">
+        <div class="style-grid">
+          <div class="style-group">
+            <label class="style-lbl">حجم الخط</label>
+            <select class="style-in" id="stSize" onchange="updateSubStyles()">
+              <option value="14px">14px</option>
+              <option value="18px" selected>18px</option>
+              <option value="22px">22px</option>
+              <option value="26px">26px</option>
+            </select>
+          </div>
+          <div class="style-group">
+            <label class="style-lbl">نوع الخط</label>
+            <select class="style-in" id="stFont" onchange="updateSubStyles()">
+              <option value="'Noto Naskh Arabic', serif" selected>Noto Naskh</option>
+              <option value="'Cairo', sans-serif">Cairo</option>
+              <option value="'Tajawal', sans-serif">Tajawal</option>
+              <option value="'Amiri', serif">Amiri</option>
+              <option value="system-ui, sans-serif">System UI</option>
+            </select>
+          </div>
+          <div class="style-group">
+            <label class="style-lbl">لون النص</label>
+            <input type="color" class="style-color-in" id="stColor" value="#ffffff" onchange="updateSubStyles()">
+          </div>
+          <div class="style-group">
+            <label class="style-lbl">الظل / الحدود</label>
+            <select class="style-in" id="stShadow" onchange="updateSubStyles()">
+              <option value="shadow" selected>ظل داكن</option>
+              <option value="heavy">حدود سوداء</option>
+              <option value="soft">توهج ناعم</option>
+              <option value="none">بدون ظل</option>
+            </select>
+          </div>
+          <div class="style-group">
+            <label class="style-lbl">خلفية النص</label>
+            <select class="style-in" id="stBg" onchange="updateSubStyles()">
+              <option value="rgba(0,0,0,0.45)" selected>شبه شفاف</option>
+              <option value="rgba(0,0,0,0.85)">صندوق داكن</option>
+              <option value="transparent">شفاف</option>
+            </select>
+          </div>
+          <div class="style-group">
+            <label class="style-lbl">المكان</label>
+            <select class="style-in" id="stPos" onchange="updateSubStyles()">
+              <option value="bottom" selected>أسفل (12%)</option>
+              <option value="bottom-low">أسفل جداً (5%)</option>
+              <option value="top">أعلى (10%)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+   EDITOR SECTION (CLEAN CARDS + FROSTED 3-DOTS MENU)
+═══════════════════════════════════════ -->
+<div id="edSec">
+  
+  <div class="editor-toolbar">
+    <div class="tb-row">
+      <div class="tb-search-box">
+        <span style="font-size:12px">🔍</span>
+        <input type="text" class="tb-in" id="findIn" placeholder="بحث في النصوص..." oninput="highlightMatches()">
+      </div>
+
+      <div class="tb-replace-box">
+        <input type="text" class="tb-in" id="replaceIn" placeholder="استبدال بـ...">
+        <button class="btn b-blue b-sm" onclick="replaceAllMatches()">استبدال</button>
+      </div>
+
+      <div class="tb-shift-box">
+        <span style="font-size:11px;color:var(--t2)">⏱ إزاحة:</span>
+        <input type="number" class="tb-shift-in" id="shiftVal" value="500" step="100">
+        <span style="font-size:10px;color:var(--t3)">ms</span>
+        <button class="btn b-ghost b-sm" onclick="shiftAllTimes(-1)">-</button>
+        <button class="btn b-ghost b-sm" onclick="shiftAllTimes(1)">+</button>
+      </div>
+
+      <button class="btn b-pu b-sm" onclick="addNewBlockEnd()">➕ سطر</button>
+      <button class="btn b-blue b-sm" id="undoBtn" onclick="undoHistory()" title="تراجع (Ctrl+Z)" disabled>↩️ تراجع</button>
+      <button class="btn b-blue b-sm" id="redoBtn" onclick="redoHistory()" title="إعادة (Ctrl+Y)" disabled>↪️ إعادة</button>
+    </div>
+  </div>
+
+  <div class="sub-list-container" id="subListContainer">
+    <!-- Subtitle Cards Injected via JS -->
+  </div>
+
+  <div class="save-bar">
+    <div class="fname-wrap">
+      <input type="text" id="fnIn" class="fname-in" placeholder="اسم الملف" value="subtitle">
+      <span class="fname-ext" id="fnExt">.srt</span>
+    </div>
+    <button class="dl-vtt-btn" onclick="dlVTT()">⬇ تنزيل VTT</button>
+    <button class="dl-srt-btn" onclick="dlSRT()">⬇ تنزيل SRT</button>
+  </div>
+</div>
+
+</div>
+
+<!-- ═══ قاموس المصطلحات (Glossary) — نافذة منبثقة ═══ -->
+<div class="glossary-overlay" id="glossaryOverlay">
+  <div class="glossary-box">
+    <div class="glossary-head">
+      <span style="font-size:16px">📖</span>
+      <span class="glossary-head-title">قاموس المصطلحات الثابتة</span>
+      <button class="btn b-ghost b-sm" onclick="toggleGlossary()">✕ إغلاق</button>
+    </div>
+    <div class="glossary-body">
+      <div style="font-size:11px;color:var(--t2);margin-bottom:8px">تُحقن هذه الأزواج في برومبت الترجمة كتثبيت إلزامي (لا تؤثر على التدقيق). تُحفظ تلقائياً في متصفحك.</div>
+      <div id="glossaryList"></div>
+      <div class="glossary-add">
+        <input type="text" class="ai-key-in" id="glossFrom" placeholder="المصطلح الأصلي" style="min-width:0">
+        <input type="text" class="ai-key-in" id="glossTo" placeholder="الترجمة الثابتة" style="min-width:0">
+        <button class="ai-key-save" onclick="addGlossaryPair()">➕ إضافة</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"><span id="tIco">✅</span><span id="tMsg">تم</span></div>
+
+<!-- نقطة الدخول الوحيدة للتطبيق: ES Module (مؤجلة تلقائياً = defer) -->
+<!-- ملاحظة: يجب التشغيل عبر استضافة static بسيطة (مثل: python -m http.server) لأن المتصفحات تمنع تحميل الـ modules عبر file:// -->
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
