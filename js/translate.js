@@ -324,7 +324,12 @@ export function startTextRefinement(){ runBatchAiTask('refine'); }
    الاستدعاءات الفعلية (OpenRouter + Kie.ai)
 ══════════════════════════════════════════════════════════════ */
 
-async function executeOpenRouterRequest(promptData, model, apiKey){
+/**
+ * استدعاء OpenRouter chat/completions — يعيد النص المستخرج خاماً.
+ * (مُصدَّرة كي تعيد الوحدات الأخرى استخدامها، مثل enhance.js — تحسين AI.
+ *  executeOpenRouterRequest تغلّفها بتحليل JSON كما كان تماماً — سلوك مطابق).
+ */
+export async function chatCompletion(promptData, model, apiKey){
   const res = await apiRequest('OPENROUTER_CHAT', {
     method: 'POST',
     headers: {
@@ -352,11 +357,15 @@ async function executeOpenRouterRequest(promptData, model, apiKey){
   }
 
   const rawText = await res.text();
-  const extracted = extractTranslationText(rawText);
+  return extractTranslationText(rawText);
+}
+
+async function executeOpenRouterRequest(promptData, model, apiKey){
+  const extracted = await chatCompletion(promptData, model, apiKey);
   return parseResponseJSON(extracted);
 }
 
-async function executeKieRequest(promptData, model, apiKey, baseUrl) {
+export async function executeKieRequest(promptData, model, apiKey, baseUrl) {
   const combinedPrompt = `${promptData.systemPrompt}\n\n${promptData.userPrompt}`;
   let targetUrl = baseUrl || API_ENDPOINTS.KIE_RESPONSES; // الافتراضي من apiClient (نفس القيمة السابقة)
   const isChatCompletions = targetUrl.includes('/chat/completions');

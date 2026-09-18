@@ -360,3 +360,6 @@ input[type=file]{display:none}
 .tb-replace-box .btn{ flex:0 0 auto; white-space:nowrap; min-height:30px; }
 .tb-search-box .tb-in{ flex:1 1 100%; min-width:0; }
 .tb-replace-box .tb-in{ flex:1; min-width:0; }
+
+/* ── زر «تحسين بـ AI»: واضح على الهاتف، لا يُضغط ولا يُقص على أي شاشة ── */
+#aiEnhanceBtn{ flex:0 0 auto; white-space:nowrap; min-height:34px; }

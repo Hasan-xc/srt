@@ -44,6 +44,7 @@ import { dlVTT } from './editor.js';
 import { initAutosave } from './autosave.js';
 import { initHistory, undoHistory, redoHistory } from './history.js';
 import { initGlossary, toggleGlossary, addGlossaryPair, removeGlossaryPair } from './glossary.js';
+import { startAiEnhance } from './enhance.js';
 
 /* ═══════════════════════════════════════
    تعريض الدوال لمعالجات HTML الضمنية
@@ -72,7 +73,9 @@ const globalApi = {
   cancelAiTask, testKieConnection,
   // ميزات إضافية (تراجع/إعادة، تصدير VTT، قاموس المصطلحات)
   undoHistory, redoHistory, dlVTT,
-  toggleGlossary, addGlossaryPair, removeGlossaryPair
+  toggleGlossary, addGlossaryPair, removeGlossaryPair,
+  // تحسين بـ AI
+  startAiEnhance
 };
 
 Object.assign(window, globalApi);
