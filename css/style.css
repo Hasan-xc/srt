@@ -364,6 +364,11 @@ input[type=file]{display:none}
 /* ── زر «تحسين بـ AI»: واضح على الهاتف، لا يُضغط ولا يُقص على أي شاشة ── */
 #aiEnhanceBtn{ flex:0 0 auto; white-space:nowrap; min-height:34px; }
 
+/* ── صندوق «أقصى حروف» للتقسيم التلقائي للأسطر ── */
+.tb-split-box{ display:flex; align-items:center; gap:4px; flex:0 0 auto;
+  background:var(--s2); border:1px solid var(--b2); border-radius:8px; padding:2px 6px; }
+.tb-split-box .tb-shift-in{ width:38px; }
+
 /* ── أشرطة المفاتيح القابلة للطي (Accordion خفيف) ── */
 .key-bar{ display:flex; align-items:center; justify-content:space-between; gap:8px; margin:2px 0 8px; flex-wrap:wrap; }
 .key-edit-btn{ display:inline-flex; align-items:center; gap:6px; background:var(--s2); border:1px solid var(--b2);

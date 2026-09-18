@@ -24,7 +24,7 @@ import {
   renderCards, toggleRowMenu, onTextInput, onRowClick, onTimeInputChange,
   stepBlockTime, delBlock, addNewBlockAfter, addNewBlockEnd,
   mergeWithNext, splitBlock, shiftAllTimes, highlightMatches,
-  replaceAllMatches, dlSRT
+  replaceAllMatches, dlSRT, splitLongLines, saveSplitLimit, initSplitLimit
 } from './editor.js';
 import {
   togglePlay, skipVid, removeVideo, showVidSec, jumpToBlock, initVideoEvents
@@ -66,6 +66,7 @@ const globalApi = {
   stepBlockTime, delBlock, addNewBlockAfter, addNewBlockEnd,
   mergeWithNext, splitBlock, shiftAllTimes, highlightMatches,
   replaceAllMatches, dlSRT,
+  splitLongLines, saveSplitLimit, initSplitLimit,
   // video (المشغل والمزامنة)
   togglePlay, skipVid, removeVideo, showVidSec, jumpToBlock,
   // styling (مظهر الترجمة)
@@ -115,6 +116,7 @@ window.addEventListener('DOMContentLoaded', () => {
   loadSavedSubStyles();
   checkTrReady();
   try { refreshKeyBadges(); } catch(e) { console.warn('key badges:', e); }
+  try { initSplitLimit(); } catch(e) { console.warn('split limit:', e); }
 
   // ── ربط مستمعات رفع الملفات (مرة واحدة) ──
   initCoreEvents();

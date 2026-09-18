@@ -354,6 +354,11 @@
       <button class="btn b-pu b-sm" onclick="addNewBlockEnd()">➕ سطر</button>
       <button class="btn b-blue b-sm" id="undoBtn" onclick="undoHistory()" title="تراجع (Ctrl+Z)" disabled>↩️ تراجع</button>
       <button class="btn b-blue b-sm" id="redoBtn" onclick="redoHistory()" title="إعادة (Ctrl+Y)" disabled>↪️ إعادة</button>
+      <button class="btn b-green b-sm" onclick="splitLongLines()" title="تقسيم الأسطر الطويلة تلقائياً (بدون ذكاء اصطناعي)">✂️ تقسيم</button>
+      <div class="tb-split-box" title="أقصى حروف للسطر قبل التقسيم">
+        <span style="font-size:10px;color:var(--t2)">أقصى حروف</span>
+        <input type="number" class="tb-shift-in" id="splitMaxIn" value="42" min="1" max="500" oninput="saveSplitLimit()">
+      </div>
       <button class="btn b-pu b-sm" id="aiEnhanceBtn" onclick="startAiEnhance()" title="تحسين الترجمة والتقسيم والتوقيت بالذكاء الاصطناعي">🤖 تحسين بـ AI</button>
     </div>
   </div>

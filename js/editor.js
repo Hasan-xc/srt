@@ -303,6 +303,91 @@ export function splitBlock(id){
   toast('تم تقسيم السطر بنجاح','✂️');
 }
 
+/* ═══════════════ التقسيم التلقائي للأسطر الطويلة (بدون AI) ═══════════════ */
+
+const SPLIT_LIMIT_KEY = 'srt_split_limit';
+const SPLIT_MIN_MS = 700; // أقل مدة عرض مقبولة لأي جزء — لا تقسيم دونها
+
+function splitSmart(text, max) {
+  text = text.replace(/\s+/g, ' ').trim();
+  if (text.length <= max) return [text];
+  for (const re of [/(?<=[.!?؟…])\s+/, /(?<=[,،;؛:])\s+/]) {
+    const parts = text.split(re);
+    if (parts.length > 1) return parts.flatMap(p => splitSmart(p, max));
+  }
+  const words = text.split(' ');
+  if (words.length < 2) return [text];
+  let best = 1, bestDiff = Infinity, len = 0;
+  for (let i = 0; i < words.length - 1; i++) {
+    len += words[i].length + 1;
+    let diff = Math.abs(len - text.length / 2);
+    if (words[i].length <= 2) diff += 8; // لا تنهِ السطر بكلمة قصيرة
+    if (diff < bestDiff) { bestDiff = diff; best = i + 1; }
+  }
+  return [words.slice(0, best).join(' '), words.slice(best).join(' ')]
+    .flatMap(p => splitSmart(p, max));
+}
+
+function mergeTiny(parts, max, min = 12) {
+  const out = [];
+  for (const p of parts) {
+    const last = out[out.length - 1];
+    if (last && (p.length < min || last.length < min) && last.length + 1 + p.length <= max)
+      out[out.length - 1] = last + ' ' + p;
+    else out.push(p);
+  }
+  return out;
+}
+
+function applySplit(block, max) {
+  const parts = mergeTiny(splitSmart(block.text, max), max);
+  const s = parseTimeStringToMs(block.start), e = parseTimeStringToMs(block.end);
+  const dur = e - s;
+  if (parts.length < 2 || dur < parts.length * SPLIT_MIN_MS) return [block];
+  const total = parts.reduce((a, p) => a + p.length, 0);
+  let t = s;
+  return parts.map((p, i) => {
+    const end = i === parts.length - 1 ? e : t + Math.round(dur * p.length / total);
+    const b = { id: ++state.uid, start: formatMs(t), end: formatMs(end), text: p };
+    t = end;
+    return b;
+  });
+}
+
+export function saveSplitLimit(){
+  try {
+    const el = document.getElementById('splitMaxIn');
+    const v = parseInt(el && el.value, 10);
+    if(Number.isFinite(v) && v >= 1) localStorage.setItem(SPLIT_LIMIT_KEY, String(v));
+  } catch(_) {}
+}
+
+export function initSplitLimit(){
+  try {
+    const el = document.getElementById('splitMaxIn');
+    const saved = localStorage.getItem(SPLIT_LIMIT_KEY);
+    if(el && saved && parseInt(saved, 10) >= 1) el.value = saved;
+  } catch(_) {}
+}
+
+export function splitLongLines(){
+  try {
+    const el = document.getElementById('splitMaxIn');
+    const raw = parseInt(el && el.value, 10);
+    if(!Number.isFinite(raw) || raw < 1 || raw > 500) return toast('حد أقصى الحروف غير صالح','⚠️');
+
+    const originalIds = state.blocks.map(b => b.id);
+    captureHistory(); // لقطة قبل التعديل — التراجع يعيد الأصل بضغطة واحدة
+    state.blocks = state.blocks.flatMap(b => applySplit(b, raw));
+    const newIds = new Set(state.blocks.map(b => b.id));
+    const splitCount = originalIds.filter(id => !newIds.has(id)).length;
+    renderCards();
+
+    if(splitCount === 0) return toast('لا توجد أسطر طويلة','✂️');
+    toast(`تم تقسيم ${splitCount} ${splitCount === 1 ? 'سطر' : 'أسطر'}`,'✂️');
+  } catch(_) { toast('تعذر تنفيذ التقسيم','⚠️'); }
+}
+
 /* ═══════════════ عمليات الكل (إزاحة، بحث، تنزيل) ═══════════════ */
 
 export function shiftAllTimes(direction) {
