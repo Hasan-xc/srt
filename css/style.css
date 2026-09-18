@@ -363,3 +363,22 @@ input[type=file]{display:none}
 
 /* ── زر «تحسين بـ AI»: واضح على الهاتف، لا يُضغط ولا يُقص على أي شاشة ── */
 #aiEnhanceBtn{ flex:0 0 auto; white-space:nowrap; min-height:34px; }
+
+/* ── أشرطة المفاتيح القابلة للطي (Accordion خفيف) ── */
+.key-bar{ display:flex; align-items:center; justify-content:space-between; gap:8px; margin:2px 0 8px; flex-wrap:wrap; }
+.key-edit-btn{ display:inline-flex; align-items:center; gap:6px; background:var(--s2); border:1px solid var(--b2);
+  color:var(--t2); border-radius:8px; padding:5px 9px; font-size:11px; cursor:pointer; white-space:nowrap; min-height:30px; }
+.key-edit-btn:active{ transform:scale(.97); opacity:.85; }
+.key-badge{ font-size:10px; font-weight:700; }
+.key-badge.ok{ color:#3ddc84; }
+.key-badge.miss{ color:var(--yw); }
+.key-panel{ display:none; }
+.key-panel.open{ display:block; animation:keyFade .18s ease-out; }
+@keyframes keyFade{ from{ opacity:0; transform:translateY(-4px); } to{ opacity:1; transform:none; } }
+
+/* ── شارات سرعة القراءة CPS/CPL في رأس البطاقات ── */
+.cps-badge{ font-size:9px; font-weight:700; padding:2px 7px; border-radius:20px;
+  font-family:var(--mono); cursor:default; flex:0 0 auto; line-height:1.5; }
+.cps-ok{ background:rgba(61,220,132,.14); color:#3ddc84; }
+.cps-mid{ background:rgba(255,193,7,.16); color:var(--yw); }
+.cps-fast{ background:rgba(247,106,95,.18); color:var(--rd); }

@@ -38,10 +38,15 @@
 
     <!-- ═══ القسم الأول: التفريغ الصوتي (Groq) ═══ -->
     <div style="font-size:12px;font-weight:700;color:var(--pu);margin-bottom:6px">🎙️ 1) التفريغ الصوتي — Groq Whisper</div>
-    <div style="margin-bottom:4px;font-size:11px;color:var(--t2)">🔑 Groq API Key (من console.groq.com)</div>
-    <div class="ai-key-row">
-      <input type="password" class="ai-key-in" id="aiKeyIn" placeholder="gsk_..." oninput="checkAiReady()">
-      <button class="ai-key-save" onclick="saveApiKey()">💾 حفظ</button>
+    <div class="key-bar">
+      <div style="font-size:11px;color:var(--t2)">🔑 Groq API Key (من console.groq.com)</div>
+      <button type="button" class="key-edit-btn" id="keyToggleGroq" onclick="toggleKeyPanel('groq')">⚙️ تعديل المفتاح <span class="key-badge miss" id="keyBadgeGroq">⚠️ غير متوفر</span></button>
+    </div>
+    <div class="key-panel" id="keyPanelGroq">
+      <div class="ai-key-row">
+        <input type="password" class="ai-key-in" id="aiKeyIn" placeholder="gsk_..." oninput="checkAiReady()">
+        <button class="ai-key-save" onclick="saveApiKey()">💾 حفظ</button>
+      </div>
     </div>
     
     <div class="ai-drop" id="aiDrop" onclick="document.getElementById('aiFileIn').click()">
@@ -139,28 +144,29 @@
 
     <!-- ── OpenRouter ── -->
     <div id="orBlock">
-      <div style="margin-bottom:4px;font-size:11px;color:var(--t2)">🔑 OpenRouter API Key (من openrouter.ai/keys)</div>
-      <div class="ai-key-row">
-        <input type="password" class="ai-key-in" id="orKeyIn" placeholder="sk-or-v1-..." oninput="checkTrReady()">
-        <button class="ai-key-save or" onclick="saveOrApiKey()">💾 حفظ</button>
+      <div class="key-bar">
+        <div style="font-size:11px;color:var(--t2)">🔑 OpenRouter API Key (من openrouter.ai/keys)</div>
+        <button type="button" class="key-edit-btn" id="keyToggleOr" onclick="toggleKeyPanel('or')">⚙️ تعديل المفتاح <span class="key-badge miss" id="keyBadgeOr">⚠️ غير متوفر</span></button>
+      </div>
+      <div class="key-panel" id="keyPanelOr">
+        <div class="ai-key-row">
+          <input type="password" class="ai-key-in" id="orKeyIn" placeholder="sk-or-v1-..." oninput="checkTrReady()">
+          <button class="ai-key-save or" onclick="saveOrApiKey()">💾 حفظ</button>
+        </div>
       </div>
     </div>
 
     <!-- ── Kie.ai ── -->
     <div id="kieBlock" style="display:none">
-      <div style="margin-bottom:4px;font-size:11px;color:var(--t2)">🔑 Kie.ai API Key (من kie.ai/api-key)</div>
-      <div class="ai-key-row">
-        <input type="password" class="ai-key-in" id="kieKeyIn" placeholder="kie_..." oninput="checkTrReady()">
-        <button class="ai-key-save or" onclick="saveKieApiKey()">💾 حفظ</button>
+      <div class="key-bar">
+        <div style="font-size:11px;color:var(--t2)">🔑 Kie.ai API Key (من kie.ai/api-key)</div>
+        <button type="button" class="key-edit-btn" id="keyToggleKie" onclick="toggleKeyPanel('kie')">⚙️ تعديل المفتاح <span class="key-badge miss" id="keyBadgeKie">⚠️ غير متوفر</span></button>
       </div>
-      <div style="margin:6px 0 4px;font-size:10px;color:var(--t3)">نقطة الاتصال الموحدة (Endpoint URL)</div>
-      <div class="ai-key-row">
-        <input type="text" class="ai-key-in" id="kieBaseUrl" style="direction:ltr" value="https://api.kie.ai/codex/v1/responses">
-      </div>
-      
-      <div class="kie-test-box">
-        <span style="font-size:11px;color:var(--t2)">🛠️ اختبار الجاهزية:</span>
-        <button type="button" class="btn b-blue b-sm" id="kieTestBtn" onclick="testKieConnection()">⚡ اختبار الاتصال بـ Kie.ai</button>
+      <div class="key-panel" id="keyPanelKie">
+        <div class="ai-key-row">
+          <input type="password" class="ai-key-in" id="kieKeyIn" placeholder="kie_..." oninput="checkTrReady()">
+          <button class="ai-key-save or" onclick="saveKieApiKey()">💾 حفظ</button>
+        </div>
       </div>
     </div>
 

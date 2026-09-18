@@ -238,7 +238,7 @@ async function runBatchAiTask(taskType) {
   const srcLang = document.getElementById('trSrcLang').value;
   const dialect = document.getElementById('trDialect').value;
   const model   = isKie ? document.getElementById('trModelKie').value : document.getElementById('trModel').value;
-  const kieBaseUrl = document.getElementById('kieBaseUrl').value.trim();
+  // نقطة اتصال Kie ثابتة داخلياً (API_ENDPOINTS.KIE_RESPONSES) — الحقل حُذف من الواجهة
 
   const total = state.blocks.length;
   let doneCount = 0;
@@ -264,7 +264,7 @@ async function runBatchAiTask(taskType) {
       for(let attempt = 1; attempt <= 2; attempt++){
         try {
           if (isKie) {
-            const raw = await executeKieRequest(promptData, model, apiKey, kieBaseUrl);
+            const raw = await executeKieRequest(promptData, model, apiKey);
             translated = parseResponseJSON(raw);
           } else {
             translated = await executeOpenRouterRequest(promptData, model, apiKey);
@@ -425,12 +425,14 @@ export async function executeKieRequest(promptData, model, apiKey, baseUrl) {
 
 export async function testKieConnection() {
   const apiKey = document.getElementById('kieKeyIn').value.trim();
-  const url = document.getElementById('kieBaseUrl').value.trim();
+  // نقطة الاتصال ثابتة داخلياً الآن (الحقل حُذف من الواجهة)
+  const url = API_ENDPOINTS.KIE_RESPONSES;
   const model = document.getElementById('trModelKie').value;
 
   if(!apiKey) return toast('أدخل مفتاح Kie.ai أولاً', '⚠️');
 
   const btn = document.getElementById('kieTestBtn');
+  if(!btn) return toast('أداة الاختبار حُذفت من الواجهة','⚠️');
   btn.disabled = true;
   btn.textContent = '⏳ جاري الاختبار...';
 

@@ -17,6 +17,49 @@ import { scheduleAutosave } from './autosave.js';
 import { captureHistory, scheduleTextCapture } from './history.js';
 
 /* ════════════════════════════════════════════════════════════════
+   شارات سرعة القراءة (CPS) وطول السطر (CPL) — معايير الترجمة العالمية
+   - CPS = عدد الأحرف ÷ مدة الظهور بالثواني: أخضر <17، أصفر 17-21، أحمر >21
+   - CPL: تنبيه فقط إذا تجاوز أي سطر داخلي 42 حرفاً
+   - الحساب عند الرسم فقط + debounce عند تعديل النص — صفر معالجة أثناء التشغيل
+════════════════════════════════════════════════════════════════ */
+const CPS_EASY = 17, CPS_HARD = 21, CPL_MAX = 42;
+const badgeTimers = new Map();   // id → مؤقت debounce لكل بطاقة
+
+function cpsClass(cps){
+  if(cps < CPS_EASY) return 'cps-ok';
+  if(cps <= CPS_HARD) return 'cps-mid';
+  return 'cps-fast';
+}
+
+/** يحدّث شارة CPS/CPL لبطاقة واحدة (قراءة DOM محصورة داخل البطاقة) */
+export function updateRowBadge(id){
+  const b = state.blocks.find(x => x.id === id);
+  const el = document.getElementById('cps-' + id);
+  if(!b || !el) return;
+  const durSec = (parseTimeStringToMs(b.end) - parseTimeStringToMs(b.start)) / 1000;
+  const chars = (b.text || '').replace(/\s+/g, ' ').trim().length;
+  const cps = (durSec > 0.3 && chars > 0) ? Math.round(chars / durSec) : null;
+  const maxLine = (b.text || '').split('\n').reduce((m, l) => Math.max(m, l.trim().length), 0);
+  const cplOver = maxLine > CPL_MAX;
+  if(cps === null){
+    el.textContent = '⚡ —';
+    el.className = 'cps-badge';
+    el.title = 'سرعة القراءة غير محسوبة (مدة/نص غير صالح)';
+  } else {
+    el.textContent = '⚡' + cps + (cplOver ? ' ↵' + maxLine : '');
+    el.className = 'cps-badge ' + cpsClass(cps);
+    el.title = `سرعة القراءة: ${cps} حرف/ثانية (${cps < CPS_EASY ? 'مريح ✅' : cps <= CPS_HARD ? 'مقبول ⚠️' : 'سريع جداً ❌'})`
+      + (cplOver ? ` — سطر طويل (${maxLine} حرفاً > ${CPL_MAX}) يُفضل تقسيمه` : '');
+  }
+}
+
+/** debounce خفيف لتحديث شارة البطاقة عند انتهاء تعديل النص */
+function scheduleBadgeUpdate(id){
+  clearTimeout(badgeTimers.get(id));
+  badgeTimers.set(id, setTimeout(() => { badgeTimers.delete(id); updateRowBadge(id); }, 500));
+}
+
+/* ════════════════════════════════════════════════════════════════
    CLEAN CARDS RENDERING (WITH GLASS 3-DOTS MENU)
 ══════════════════════════════════════════════════════════════ */
 
@@ -34,6 +77,7 @@ export function renderCards(){
       <div class="srt-card-head">
         <div class="head-right">
           <span class="row-num-badge">#${idx + 1}</span>
+          <span class="cps-badge" id="cps-${b.id}">⚡ —</span>
           <div class="row-menu-wrap">
             <button class="menu-dots-btn" onclick="toggleRowMenu(event, ${b.id})" title="خيارات">⋮</button>
             <div class="row-dropdown-menu" id="menu-${b.id}">
@@ -69,6 +113,7 @@ export function renderCards(){
     container.appendChild(card);
 
     setTimeout(() => autoResizeTa(document.getElementById(`ta-${b.id}`)), 0);
+    updateRowBadge(b.id);
   });
 
   // نقاط ربط الميزات الإضافية (سجل التراجع + الحفظ التلقائي) — فشلها صامت
@@ -108,7 +153,7 @@ export function onTextInput(id, el) {
     b.text = el.value;
     autoResizeTa(el);
     updateSubOverlayLive();
-    try { scheduleTextCapture(); scheduleAutosave(); } catch(_) {}
+    try { scheduleTextCapture(); scheduleAutosave(); scheduleBadgeUpdate(id); } catch(_) {}
   }
 }
 
@@ -125,7 +170,7 @@ export function onTimeInputChange(id, field, el) {
     b[field] = toStandardTime(el.value);
     el.value = fmtTimeShort(b[field]);
     updateSubOverlayLive();
-    try { captureHistory(); scheduleAutosave(); } catch(_) {}
+    try { captureHistory(); scheduleAutosave(); scheduleBadgeUpdate(id); } catch(_) {}
   }
 }
 
@@ -143,7 +188,7 @@ export function stepBlockTime(id, field, deltaMs) {
     if(field === 'end' && inputs[1]) inputs[1].value = fmtTimeShort(b.end);
   }
   updateSubOverlayLive();
-  try { captureHistory(); scheduleAutosave(); } catch(_) {}
+  try { captureHistory(); scheduleAutosave(); scheduleBadgeUpdate(id); } catch(_) {}
 }
 
 /* ═══════════════ عمليات السطر الواحد ═══════════════ */

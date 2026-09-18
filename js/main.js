@@ -17,7 +17,8 @@ import { state } from './state.js';
 import { toast, toggleAiBody } from './ui.js';
 import {
   saveApiKey, saveOrApiKey, saveKieApiKey, saveWhisperModel, saveDialectPref,
-  setTrProvider, onPA, processInput, initCoreEvents
+  setTrProvider, onPA, processInput, initCoreEvents,
+  toggleKeyPanel, setKeyPanelOpen, refreshKeyBadges
 } from './core.js';
 import {
   renderCards, toggleRowMenu, onTextInput, onRowClick, onTimeInputChange,
@@ -55,6 +56,7 @@ const globalApi = {
   // core (الإعدادات والإدخال)
   onPA, processInput, saveApiKey, saveOrApiKey, saveKieApiKey,
   saveWhisperModel, saveDialectPref, setTrProvider,
+  toggleKeyPanel, setKeyPanelOpen, refreshKeyBadges,
   // editor (المحرر)
   renderCards, toggleRowMenu, onTextInput, onRowClick, onTimeInputChange,
   stepBlockTime, delBlock, addNewBlockAfter, addNewBlockEnd,
@@ -91,8 +93,7 @@ window.addEventListener('DOMContentLoaded', () => {
   if(ok) document.getElementById('orKeyIn').value = ok;
   const kk = localStorage.getItem('kie_api_key');
   if(kk) document.getElementById('kieKeyIn').value = kk;
-  const kb = localStorage.getItem('kie_base_url');
-  if(kb) document.getElementById('kieBaseUrl').value = kb;
+  // نقطة اتصال Kie ثابتة داخلياً (API_ENDPOINTS) — حقل الإدخال حُذف من الواجهة
 
   // ── استعادة التفضيلات المحفوظة ──
   const savedWhisperModel = localStorage.getItem('whisper_model');
@@ -106,6 +107,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
   loadSavedSubStyles();
   checkTrReady();
+  try { refreshKeyBadges(); } catch(e) { console.warn('key badges:', e); }
 
   // ── ربط مستمعات رفع الملفات (مرة واحدة) ──
   initCoreEvents();

@@ -25,7 +25,7 @@ import { getGlossaryPromptBlock } from './glossary.js';
 import { parseTimeStringToMs, formatMs } from './time.js';
 import { chatCompletion, executeKieRequest } from './translate.js';
 
-const ENH_BATCH_SIZE   = 30;  // عدد عناصر SRT في الدفعة الواحدة
+const ENH_BATCH_SIZE   = 14;  // عدد عناصر SRT في الدفعة الواحدة (صغير = JSON سليم وردود أسرع)
 const ENH_CONTEXT_LINES = 3;  // أسطر السياق (قبل/بعد) المرفقة مع كل دفعة
 const ENH_MIN_DUR      = 500; // أقل مدة عرض مريحة للقراءة (ms)
 const ENH_MIN_DUR_HARD = 200; // أقل مدة مقبولة مطلقاً عند تضييق النافذة (ms)
@@ -85,7 +85,7 @@ export async function startAiEnhance(){
   const dialect  = document.getElementById('trDialect').value;
   const srcLang  = document.getElementById('trSrcLang').value;
   const model    = isKie ? document.getElementById('trModelKie').value : document.getElementById('trModel').value;
-  const kieBaseUrl = document.getElementById('kieBaseUrl').value.trim();
+  // نقطة اتصال Kie ثابتة داخلياً (API_ENDPOINTS.KIE_RESPONSES) — الحقل حُذف من الواجهة
 
   // بناء الدفعات: نواة + سياق قبل/بعد (لل فهم فقط، لا تُعاد)
   const batches = [];
@@ -110,7 +110,7 @@ export async function startAiEnhance(){
       for(let attempt = 1; attempt <= 2; attempt++){
         try {
           const raw = isKie
-            ? await executeKieRequest(promptData, model, apiKey, kieBaseUrl)
+            ? await executeKieRequest(promptData, model, apiKey)
             : await chatCompletion(promptData, model, apiKey);
           const parsed = parseEnhanceResponse(raw);
           if(parsed){ segs = parsed; break; }
@@ -229,18 +229,45 @@ ${JSON.stringify(after.map(c => ({ i: c.i, s: c.s, e: c.e, t: c.t })))}`;
    تحليل الرد: استخراج مصفوفة المقاطع {i, s, e, t}
 ════════════════════════════════════════════════════════════════ */
 
+/**
+ * يبحث في النص عن أول كائن JSON متوازن الأقواس ويستخرجه
+ * (يتجاهل الأقواس داخل النصوص المقتبسة) — مقاوم للردود الزائدة.
+ */
+function extractBalancedObject(str){
+  const start = str.indexOf('{');
+  if(start === -1) return null;
+  let depth = 0, inStr = false, esc = false;
+  for(let i = start; i < str.length; i++){
+    const ch = str[i];
+    if(esc){ esc = false; continue; }
+    if(ch === '\\'){ esc = true; continue; }
+    if(ch === '"'){ inStr = !inStr; continue; }
+    if(inStr) continue;
+    if(ch === '{') depth++;
+    else if(ch === '}'){
+      depth--;
+      if(depth === 0) return str.slice(start, i + 1);
+    }
+  }
+  return null;
+}
+
 export function parseEnhanceResponse(raw){
   try {
     if(!raw || typeof raw !== 'string') return null;
-    let clean = raw.trim()
-      .replace(/^```json\s*/i, '')
-      .replace(/^```\s*/i, '')
-      .replace(/\s*```$/i, '')
+    // تنظيف شامل: BOM + ماركداون (أسوار الكود، backticks) + أحرف تحكم
+    let clean = raw
+      .replace(/^\uFEFF/, '')
+      .replace(/```(?:json)?/gi, '')
+      .replace(/`/g, '')
       .trim();
     let parsed = null;
-    try { parsed = JSON.parse(clean); } catch(_){
-      const m = clean.match(/\{[\s\S]*\}/);
-      if(m){ try { parsed = JSON.parse(m[0]); } catch(_){} }
+    // 1) النص كله JSON مباشرة
+    try { parsed = JSON.parse(clean); } catch(_){}
+    // 2) أول كائن {...} متوازن (يتسامح مع أي كلام زائد قبل/بعد الرد)
+    if(!parsed){
+      const obj = extractBalancedObject(clean);
+      if(obj){ try { parsed = JSON.parse(obj); } catch(_){} }
     }
     if(!parsed || typeof parsed !== 'object') return null;
 

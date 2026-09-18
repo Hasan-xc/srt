@@ -16,26 +16,84 @@ import { toast } from './ui.js';
 
 /* ═══════════════ حفظ المفاتيح والإعدادات ═══════════════ */
 
+/* ── أشرطة المفاتيح القابلة للطي (Accordion) ── */
+const KEY_MAP = {
+  groq: { panel: 'keyPanelGroq', badge: 'keyBadgeGroq', input: 'aiKeyIn',  ls: 'groq_api_key' },
+  or:   { panel: 'keyPanelOr',   badge: 'keyBadgeOr',   input: 'orKeyIn',  ls: 'openrouter_api_key' },
+  kie:  { panel: 'keyPanelKie',  badge: 'keyBadgeKie',  input: 'kieKeyIn', ls: 'kie_api_key' }
+};
+
+function keyEls(which){
+  const m = KEY_MAP[which];
+  return {
+    panel: m ? document.getElementById(m.panel) : null,
+    badge: m ? document.getElementById(m.badge) : null,
+    input: m ? document.getElementById(m.input) : null,
+    ls: m ? m.ls : null
+  };
+}
+
+/**
+ * فتح/إغلاق درع إدخال مفتاح (Toggle). فتح واحد يغلق الباقي
+ * لتبقى الواجهة مضغوطة على الهاتف.
+ */
+export function toggleKeyPanel(which){
+  const els = keyEls(which);
+  if(!els.panel) return;
+  const willOpen = !els.panel.classList.contains('open');
+  // Accordion: إغلاق بقية الأدرع
+  Object.keys(KEY_MAP).forEach(k => setKeyPanelOpen(k, false));
+  setKeyPanelOpen(which, willOpen);
+}
+
+/**
+ * ضبط حالة درع المفتاح (مفتوح/مغلق) + تحديث شارة الحالة.
+ */
+export function setKeyPanelOpen(which, open){
+  const els = keyEls(which);
+  if(!els.panel) return;
+  els.panel.classList.toggle('open', !!open);
+  if(open && els.input) els.input.focus();
+  refreshKeyBadges();
+}
+
+/**
+ * تحديث شارات حالة المفاتيح: مُعيّن ✅ / غير متوفر ⚠️
+ * (تقرأ من localStorage — مصدر الحقيقة الفعلي)
+ */
+export function refreshKeyBadges(){
+  Object.keys(KEY_MAP).forEach(k => {
+    const els = keyEls(k);
+    if(!els.badge) return;
+    const saved = !!(localStorage.getItem(els.ls) && String(localStorage.getItem(els.ls)).trim())
+      || (els.panel && els.panel.classList.contains('open') && els.input && els.input.value.trim());
+    els.badge.textContent = saved ? '✅ مُعيّن' : '⚠️ غير متوفر';
+    els.badge.classList.toggle('ok', !!saved);
+    els.badge.classList.toggle('miss', !saved);
+  });
+}
+
 export function saveApiKey(){
   const k = document.getElementById('aiKeyIn').value.trim();
   if(!k) return toast('أدخل المفتاح أولاً','⚠️');
   localStorage.setItem('groq_api_key', k);
   toast('تم حفظ مفتاح Groq','🔐');
+  setKeyPanelOpen('groq', false);
 }
 export function saveOrApiKey(){
   const k = document.getElementById('orKeyIn').value.trim();
   if(!k) return toast('أدخل المفتاح أولاً','⚠️');
   localStorage.setItem('openrouter_api_key', k);
   toast('تم حفظ مفتاح OpenRouter','🔐');
+  setKeyPanelOpen('or', false);
   checkTrReady();
 }
 export function saveKieApiKey(){
   const k = document.getElementById('kieKeyIn').value.trim();
   if(!k) return toast('أدخل المفتاح أولاً','⚠️');
-  const u = document.getElementById('kieBaseUrl').value.trim();
   localStorage.setItem('kie_api_key', k);
-  if(u) localStorage.setItem('kie_base_url', u);
   toast('تم حفظ إعدادات Kie.ai','🔐');
+  setKeyPanelOpen('kie', false);
   checkTrReady();
 }
 export function saveWhisperModel(){
