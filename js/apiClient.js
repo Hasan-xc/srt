@@ -2,75 +2,68 @@
  * apiClient.js — البوابة المركزية الوحيدة لكل استدعاءات الشبكة الخارجية
  *
  * المسؤولية:
- *  - تجميع كل روابط الـ API (Groq / OpenRouter / Kie.ai / corsproxy) في مكان واحد
+ *  - تجميع كل روابط الـ API (Groq / OpenRouter / Kie.ai) في مكان واحد
  *  - توفير دالة موحدة apiRequest() تستدعيها كل الوحدات بدلاً من fetch() المباشر
- *  - الحفاظ على سلوك المرحلة السابقة بالضبط: نفس الهيدرات، نفس الجسم،
- *    نفس معالجة الأخطاء، وبدائل corsproxy لـ Kie.ai
+ *  - دعم وكيل CORS اختياري لـ Kie.ai عبر KIE_PROXY_URL (Worker خاص)
  *
- * ملاحظة أمنية (تحضير للمرحلة القادمة):
- *  هذه المرحلة تنظيمية فقط — المفاتيح ما زالت تُقرأ من أماكنها الأصلية
- *  (localStorage / حقول الإدخال) ولا يلمس هذا الملف أي منطق مفاتيح.
- *  كل رابط جاهز لاحقاً للتحويل إلى مسار Backend وسيط.
+ * ملاحظة أمنية:
+ *  لا يحتوي هذا الملف على أي مفاتيح — المفاتيح تُقرأ من حقول الإدخال
+ *  و localStorage في أماكنها الأصلية، ولا تُمرر إلا في ترويسة Authorization
+ *  كالمعتاد.
  */
 
 /* ═══════════════════════════════════════
    إعدادات نقاط الاتصال
-   (القيم منقولة كما هي بالضبط من المرحلة السابقة — لا تغيير)
-═════════════════════════════════════ */
+═══════════════════════════════════════ */
 export const API_ENDPOINTS = {
-  // TODO: استبدال هذا لاحقاً بمسار Backend خاص
   GROQ_TRANSCRIBE: 'https://api.groq.com/openai/v1/audio/transcriptions',
 
-  // TODO: استبدال هذا لاحقاً بمسار Backend خاص
   OPENROUTER_CHAT: 'https://openrouter.ai/api/v1/chat/completions',
 
-  // TODO: استبدال هذا لاحقاً بمسار Backend خاص
-  // (الرابط الافتراضي لـ Kie — قابل للتعديل من الواجهة عبر حقل endpoint)
-  KIE_RESPONSES: 'https://api.kie.ai/codex/v1/responses',
-
-  // TODO: استبدال هذا لاحقاً بمسار Backend خاص
-  // (وكيل تجاوز CORS — يُستخدم داخلياً فقط عند فشل الاتصال المباشر بـ Kie)
-  KIE_CORS_PROXY: 'https://corsproxy.io/?'
+  KIE_RESPONSES: 'https://api.kie.ai/codex/v1/responses'
 };
+
+/**
+ * وكيل CORS اختياري لـ Kie.ai.
+ * فارغ = اتصال مباشر. عند تعبئته برابط Worker خاص (انظر worker/kie-proxy.js)
+ * يُستخدم بدلاً من رابط Kie الافتراضي، ويعيد توجيه الطلب إلى نفس الواجهة
+ * مع تمرير ترويسة Authorization كما هي.
+ * اتركه فارغاً ما لم تواجه أخطاء CORS في المتصفح.
+ */
+export const KIE_PROXY_URL = '';
+
+const KIE_NET_ERROR =
+  'تعذر الاتصال بـ Kie.ai — غالباً CORS. أنشئ Worker خاصاً وضع رابطه في KIE_PROXY_URL.';
 
 /**
  * الاستدعاء الموحد لكل طلبات الشبكة الخارجية.
  *
  * @param {string} endpointKey مفتاح من API_ENDPOINTS أعلاه
- * @param {object} options نفس خيارات fetch تماماً (method/headers/body...)
+ * @param {object} options نفس خيارات fetch تماماً (method/headers/body/signal...)
  *   - خاصية اختيارية إضافية: options.url — رابط ديناميكي بدل الافتراضي
- *     (تستخدمه واجهة Kie.ai لأن نقطة الاتصال قابلة للتعديل من الإعدادات)
- * @returns {Promise<Response>} استجابة fetch الأصلية بدون أي تغليف،
- *   تماماً كما كانت تستقبلها الوحدات قبل المركزية.
+ * @returns {Promise<Response>} استجابة fetch الأصلية بدون أي تغليف
  */
 export async function apiRequest(endpointKey, options = {}) {
   const defaultUrl = API_ENDPOINTS[endpointKey];
   if (!defaultUrl) throw new Error('نقطة اتصال غير معروفة: ' + endpointKey);
 
-  // نفصل options.url حتى لا تُمرر لـ fetch (لا تؤثر، لكن أنظف هكذا)
   const { url: dynamicUrl, ...fetchOptions } = options;
-  const targetUrl = (typeof dynamicUrl === 'string' && dynamicUrl.trim())
-    ? dynamicUrl.trim()
-    : defaultUrl;
+  const dyn = (typeof dynamicUrl === 'string' && dynamicUrl.trim()) ? dynamicUrl.trim() : '';
 
-  // ── مسار Kie: نفس سلوك executeKieRequest الأصلي حرفياً ──
-  // محاولة مباشرة أولاً، وعند فشل الشبكة فقط (وليس عند رد غير ناجح)
-  // تتم إعادة المحاولة عبر corsproxy. لو فشل الوكيل أيضاً → نفس رسالة الخطأ.
+  // ── مسار Kie: رابط الوكيل يسبق الاتصال المباشر إذا كان مضبوطاً ──
+  // عند فشل الشبكة (CORS) نرمي خطأً واضحاً يشير إلى إعداد الوكيل،
+  // لكن أخطاء الإجهاض/المهلة (AbortError) تمر للمتصل كما هي.
   if (endpointKey === 'KIE_RESPONSES') {
-    let res;
+    const proxy = (typeof KIE_PROXY_URL === 'string' && KIE_PROXY_URL.trim()) ? KIE_PROXY_URL.trim() : '';
+    const target = proxy || dyn || API_ENDPOINTS.KIE_RESPONSES;
     try {
-      res = await fetch(targetUrl, fetchOptions);
+      return await fetch(target, fetchOptions);
     } catch (netErr) {
-      const proxyUrl = API_ENDPOINTS.KIE_CORS_PROXY + encodeURIComponent(targetUrl);
-      try {
-        res = await fetch(proxyUrl, fetchOptions);
-      } catch (proxyErr) {
-        throw new Error('تعذر الاتصال بـ Kie.ai.');
-      }
+      if (netErr && netErr.name === 'AbortError') throw netErr; // إيقاف/مهلة — يعالجه المتصل
+      throw new Error(KIE_NET_ERROR);
     }
-    return res;
   }
 
-  // ── بقية النقاط: fetch مباشر كما في الأصل تماماً (بدون أي وكيل) ──
-  return fetch(targetUrl, fetchOptions);
+  // ── بقية النقاط: fetch مباشر (بدون أي وكيل) ──
+  return fetch(dyn || defaultUrl, fetchOptions);
 }

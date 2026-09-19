@@ -189,6 +189,9 @@
       <button class="tr-run-btn" id="trRunBtn" onclick="startTranslation()" disabled style="flex:1">
         <span>🌍</span><span>ترجمة جميع الأسطر</span>
       </button>
+      <button type="button" class="tr-run-btn" id="trRetryBtn" onclick="retryMissingTranslation()" style="display:none;flex:1">
+        <span>🔁</span><span>أعد ترجمة الناقص</span>
+      </button>
     </div>
     <div class="ai-controls" id="trStopBox" style="display:none;">
       <button class="btn b-red" style="flex:1;min-height:44px" onclick="cancelAiTask()">
