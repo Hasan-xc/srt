@@ -440,85 +440,161 @@ async function prepareAndRunAi() {
 }
 
 async function executeChunksLoop(apiKey) {
-  // التفريغ يعمل دائماً بموديل Whisper Large V3 الأصلي (المتوازن) مع
-  // كشف تلقائي للغة — بلا أي خيارات من الواجهة (أُزيلت القوائم).
   const model = 'whisper-large-v3';
+  const POOL = 3;                 // إرسال متوازٍ: 3 أجزاء في آنٍ واحد
+  const TIMEOUT_MS = 180000;      // مهلة لكل جزء (3 دقائق)
+  const MAX_ATTEMPTS = 3;         // إعادة محاولة عند ضعف الاتصال/الوقت الكامل
+  const kbps = (typeof aiAudioQualityKbps === 'number' && aiAudioQualityKbps > 0) ? aiAudioQualityKbps : 48;
 
-  while (aiCurrentChunk < aiTotalChunks) {
-    if(aiIsPaused) break;
-    const startSec = aiCurrentChunk * aiChunkSeconds;
-    const endSec   = Math.min(startSec + aiChunkSeconds, aiAudioBuffer.duration);
-    const offsetMs = Math.round(startSec * 1000);
-    const oS = formatMs(offsetMs).substring(0,8);
-    const oE = formatMs(Math.round(endSec * 1000)).substring(0,8);
-    setStatus(`🔄 تفريغ الجزء ${aiCurrentChunk+1}/${aiTotalChunks} &nbsp;•&nbsp; <span style="font-family:var(--mono);color:var(--yw)">${oS} → ${oE}</span>`);
+  // تجهيز قائمة الأجزاء (نطاقات زمنية متراكمة لإزاحة التوقيت)
+  aiTotalChunks = Math.max(1, Math.round(aiAudioBuffer.duration / aiChunkSeconds));
+  if(aiAudioBuffer.duration > 0 && aiTotalChunks === 0) aiTotalChunks = 1     ;
+  const jobs = [];
+  for(let i = 0; i < aiTotalChunks; i++){
+    const startSec0 = i * aiChunkSeconds;
+    const endSec0   = Math.min(startSec0 + aiChunkSeconds, aiAudioBuffer.duration);
+    jobs.push({ index: i, start: startSec0, end: endSec0, offsetMs: Math.round(startSec0 * 1000) });
+  }
 
-    let { samples, sampleRate } = extractMonoChunk(aiAudioBuffer, startSec, endSec);
+  // جدولة تقدمية توضيحية (console.table)
+  const chunkLog = [];
+  let chunkSeq = 0;
+
+  // ترميز جزء إلى MP3 (الافتراضي مع lamejs) مع الاحتياطي WAV
+  async function encodeChunk(job){
+    let { samples, sampleRate } = extractMonoChunk(aiAudioBuffer, job.start, job.end);
     if(sampleRate !== TARGET_SR) { samples = resampleTo16k(samples, sampleRate); sampleRate = TARGET_SR; }
-    let wavBlob = audioBufferToWav(samples, sampleRate);
+    let blob = null, usedMp3 = true;
+    try { blob = await encodeMonoToMp3(samples, sampleRate, kbps, null); }
+    catch(_) {
+      usedMp3 = false;
+      blob = audioBufferToWav(samples, sampleRate);
+    }
     samples = null;
+    return { blob, usedMp3 };
+  }
 
-    let res = null;
-    let lastErrMsg = '';
-
-    // محاولتان في حال ضعف الاتصال
-    for (let attempt = 1; attempt <= 2; attempt++) {
+  // إرسال جزء مع إعادة محاولة (Backoff) ومعالجة رموز الحالة المعروفة
+  async function sendChunk(job){
+    const { blob, usedMp3 } = await encodeChunk(job);
+    let res = null, lastErr = '', attemptTimeMs = 0;
+    ADD: for(let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++){
+      if(aiIsPaused) break;
+      const startedAt = Date.now();
+      const ctrl = new AbortController();
+      const tid  = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
       try {
         const fd = new FormData();
-        fd.append('file', wavBlob, `chunk_${String(aiCurrentChunk+1).padStart(3,'0')}.wav`);
+        fd.append('file', blob, `chunk_${String(job.index+1).padStart(3,'0')}_${usedMp3?'mp3':'wav'}`);
         fd.append('model', model);
         fd.append('response_format', 'verbose_json');
         fd.append('temperature', '0');
+        fd.append('language', 'auto');
 
         res = await apiRequest('GROQ_TRANSCRIBE', {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${apiKey}` },
-          body: fd
+          body: fd,
+          signal: ctrl.signal
         });
+        attemptTimeMs = Date.now() - startedAt     ;
+        if(res.ok) break ADD;
 
-        if (res.ok) break;
-        else {
-          let d = null;
-          try { d = await res.json(); } catch(_){}
-          lastErrMsg = d?.error?.message || `HTTP ${res.status}`;
-          throw new Error(lastErrMsg);
+        const status = res.status;
+        if(status === 429 || status === 486) {
+          // ضغط الخادم — ننتظر قبل إعادة المحاولة
+          const retryAfter = Number(res.headers?.get?.('retry-after') || 0);
+          lastErr = `ضغط الخادم (HTTP ${status})`;
+          await new Promise(r => setTimeout(r, (retryAfter || 2) * 1000 * attempt  ));
+        } else if(status === 401 || status === 403) {
+          lastErr = 'مفتاح API غير صالح أو منتهي';
+          break; // لا فائدة من الإعادة
+        } else {
+          let d = null; try { d = await res.json(); } catch(_){}
+          lastErr = d?.error?.message || `HTTP ${status}`;
+          await new Promise(r => setTimeout(r, 800 * attempt));
         }
-      } catch (err) {
-        lastErrMsg = err.message || 'فشل الاتصال بـ Groq';
-        if (attempt === 1) await new Promise(r => setTimeout(r, 1500));
+      } catch(err) {
+        lastErr = err?.name === 'AbortError' ? 'انتهت المهلة (180s)' : (err.message || 'خطأ في الاتصال');
+        await new Promise(r => setTimeout(r, 1000 * attempt));
+        attemptTimeMs = Date.now() - startedAt
+      } finally {
+        clearTimeout(tid);
       }
     }
 
-    wavBlob = null;
-    if(!res || !res.ok) throw new Error(lastErrMsg || 'فشل الاتصال بخادم Groq');
+    chunkLog.push({ 'الجزء': job.index+1, 'النطاق': formatMs(job.offsetMs).substring(0,8)+'→'+formatMs(Math.round(job.end*1000)).substring(0,8), 'الحالة': res?.ok ? '✅' : '❌', 'الحجم': (blob.size/1024).toFixed(0)+'KB', 'المحاولات': Math.min(MAX_ATTEMPTS, 3), 'الزمن': (attemptTimeMs/1000).toFixed(1)+'s', 'المدة': '20د' });
+    try { console.table(chunkLog); } catch(_){}
+
+    if(!res || !res.ok) throw new Error(lastErr || 'فشل إرسال الجزء');
 
     const data = await res.json();
     const segments = Array.isArray(data.segments) ? data.segments : [];
-    if(segments.length > 0) {
+    const out = [];
+    if(segments.length > 0){
       segments.forEach(seg => {
         if(!seg) return;
-        const sMs  = Math.round((Number(seg.start) || 0) * 1000) + offsetMs;
-        const eMs  = Math.round((Number(seg.end) || seg.start || 0) * 1000) + offsetMs;
+        const sMs = Math.round((Number(seg.start) || 0) * 1000) + job.offsetMs;
+        const eMs = Math.round((Number(seg.end) || seg.start || 0) * 1000) + job.offsetMs;
         const text = (seg.text || '').trim();
         if(!text) return;
-        state.blocks.push({ id: ++state.uid, start: formatMs(sMs), end: formatMs(eMs), text });
+        out.push({ sMs, eMs, text });
       });
-    } else if(data.text && data.text.trim()) {
-      state.blocks.push({ id: ++state.uid, start: formatMs(offsetMs), end: formatMs(Math.round(endSec * 1000)), text: data.text.trim() });
+    } else if(data.text && data.text.trim()){
+      out.push({ sMs: job.offsetMs, eMs: Math.round(job.end*1000), text: data.text.trim() });
     }
-
-    renderCards();
-    aiCurrentChunk++;
-    document.getElementById('aiProgBar').style.width = ((aiCurrentChunk / aiTotalChunks) * 100) + '%';
-    await new Promise(r => setTimeout(r, 120));
+    return out;
   }
 
-  if(aiCurrentChunk >= aiTotalChunks && !aiIsPaused) {
+  // تنفيذ متوازٍ مع ترتيب الإلحاق النهائي (يُحفظ بالترتيب مهما اختلفت سرعة الردود)
+  const ordered = new Array(aiTotalChunks);
+  let cursor = 0;   // أول جزء غير ملحق بعد
+  let nextJob = 0;
+
+  async function pump(){
+    while(nextJob < jobs.length){
+      if(aiIsPaused) return;
+      const job = jobs[nextJob++];
+      try {
+        const segs = await sendChunk(job);
+        ordered[job.index] = segs || [];
+      } catch(err) {
+        ordered[job.index] = null; // علامة فشل
+        lastChunkErr = err.message || 'فشل';
+      }
+      // إلحاق متسلسل (ordered): نلحق كل الأجزاء المكتملة المتتالية
+      while(cursor < aiTotalChunks){
+        const v = ordered[cursor];
+        if(v === undefined) break; // لا يزال قيد التنفيذ
+        if(v === null){
+          throw new Error(`فشل تفريغ الجزء ${cursor+1}: ${lastChunkErr}`);
+        }
+        v.forEach(o => {
+          state.blocks.push({ id: ++state.uid, start: formatMs(o.sMs), end: formatMs(o.eMs), text: o.text });
+        });
+        cursor++;
+      }
+      aiCurrentChunk = cursor;
+      const pct = cursor / aiTotalChunks * 100;
+      document.getElementById('aiProgBar').style.width = pct + '%';
+      document.getElementById('aiProgTxt').innerHTML = `🔄 ${cursor}/${aiTotalChunks} — ${Math.round(pct)}%`;
+      renderCards();
+    }
+  }
+
+  const workers = [];
+  for(let w = 0; w < POOL; w++) workers.push(pump());
+  await Promise.all(workers);
+
+  if(aiIsPaused) return; // سيُكمل عند الاستئناف
+
+  renderCards();
+  if(aiCurrentChunk >= aiTotalChunks){
     setStatus(`✅ اكتمل التفريغ الصوتي! (${state.blocks.length} مقطع)`);
     aiAudioBuffer = null;
     switchAiUI('start');
-    aiIsRunning = false; aiCurrentChunk = 0;
-    toast('SRT جاهز! يمكنك الآن مراجعته أو ترجمته','🎉');
+    aiIsRunning = false; aiCurrentChunk = 0; aiIsPaused = false;
+    toast('😅 SRT جاهز! يمكنك الآن مراجعته أو ترجمته','🎉');
   }
 }
 

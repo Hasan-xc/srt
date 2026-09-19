@@ -15,10 +15,8 @@
 <header>
   <div class="header-top">
     <button type="button" class="drawer-btn" id="drawerBtn" onclick="toggleDrawer()">📑 مشاريعي</button>
-    <div class="badge"><span class="bdot"></span>تفريغ صوتي + ترجمة آلية</div>
   </div>
   <h1><em>التفريغ الصوتي</em> <span>والترجمة الذكية</span></h1>
-  <p class="sub">Groq Whisper + OpenRouter / Kie.ai (GPT-5.6 & Gemini 2.5)</p>
 </header>
 
 <div class="card" id="inputCard">
@@ -40,8 +38,8 @@
   <div class="ai-body" id="aiBody" style="display:none">
 
     <!-- ═══ القسم الأول: التفريغ الصوتي ═══ -->
-    <div style="font-size:12px;font-weight:700;color:var(--pu);margin-bottom:6px">🎙️ 1) التفريغ الصوتي</div>
-    <div class="key-bar">
+    <div class="ai-toggle-row">
+      <div class="ai-toggle-title" style="color:var(--pu)">🎙️ 1) التفريغ الصوتي</div>
       <button type="button" class="key-edit-btn" id="keyToggleGroq" onclick="toggleKeyPanel('groq')">🔑 Groq API Key <span class="key-badge miss" id="keyBadgeGroq">⚠️ غير متوفر</span></button>
     </div>
     <div class="key-panel" id="keyPanelGroq">
@@ -55,18 +53,22 @@
       <input type="file" id="aiFileIn" accept="video/*,audio/*" style="display:none">
       <span class="ai-drop-icon">🎵</span>
       <div class="ai-drop-title" id="aiDropTxt">ارفع فيديو أو ملف صوتي هنا</div>
-      <div class="ai-drop-sub">تقسيم ذكي حسب الحجم (~18MB لكل جزء) لتفادي أي أخطاء في الشبكة</div>
+      <div class="ai-drop-sub">تفريغ دفعات زمنية (20 دقيقة لكل جزء) مع ضغط MP3 وإرسال متوازٍ</div>
     </div>
     
     <div class="ai-quality-box" id="aiQualityBox">
       <div class="ai-quality-lbl">🎚️ جودة الصوت المستخرج من الفيديو</div>
       <label class="ai-quality-opt">
-        <input type="radio" name="aiAudioQuality" value="128" checked onchange="onAudioQualityChange(128)">
-        <span>128 kbps <small>(موصى به)</small></span>
+        <input type="radio" name="aiAudioQuality" value="48" checked onchange="onAudioQualityChange(48)">
+        <span>48 kbps <small>(موصى به — مثالي للتفريغ)</small></span>
+      </label>
+      <label class="ai-quality-opt">
+        <input type="radio" name="aiAudioQuality" value="32" onchange="onAudioQualityChange(32)">
+        <span>32 kbps <small>(حجم أصغر)</small></span>
       </label>
       <label class="ai-quality-opt">
         <input type="radio" name="aiAudioQuality" value="96" onchange="onAudioQualityChange(96)">
-        <span>96 kbps <small>(حجم أصغر)</small></span>
+        <span>96 kbps <small>(جودة أعلى للاستماع)</small></span>
       </label>
     </div>
 
@@ -109,7 +111,11 @@
     <div class="section-divider" data-label="AI TOOLS & TRANSLATION"></div>
 
     <!-- ═══ القسم الثاني: الترجمة الذكية ═══ -->
-    <div style="font-size:12px;font-weight:700;color:var(--or);margin-bottom:6px">🌍 2) الترجمة الذكية</div>
+    <div class="ai-toggle-row">
+      <div class="ai-toggle-title" style="color:var(--or)">🌍 2) الترجمة الذكية</div>
+      <button type="button" class="key-edit-btn" id="keyToggleOr" onclick="toggleKeyPanel('or')">🔑 OpenRouter API Key <span class="key-badge miss" id="keyBadgeOr">⚠️ غير متوفر</span></button>
+      <button type="button" class="key-edit-btn" id="keyToggleKie" onclick="toggleKeyPanel('kie')" style="display:none">🔑 Kie.ai API Key <span class="key-badge miss" id="keyBadgeKie">⚠️ غير متوفر</span></button>
+    </div>
 
     <div class="provider-toggle">
       <button type="button" class="provider-btn active" id="provBtnOR" onclick="setTrProvider('openrouter')">🟣 OpenRouter</button>
@@ -123,9 +129,6 @@
 
     <!-- ── OpenRouter ── -->
     <div id="orBlock">
-      <div class="key-bar">
-        <button type="button" class="key-edit-btn" id="keyToggleOr" onclick="toggleKeyPanel('or')">🔑 OpenRouter API Key <span class="key-badge miss" id="keyBadgeOr">⚠️ غير متوفر</span></button>
-      </div>
       <div class="key-panel" id="keyPanelOr">
         <div class="ai-key-row">
           <input type="password" class="ai-key-in" id="orKeyIn" placeholder="sk-or-v1-..." oninput="checkTrReady()">
@@ -136,9 +139,6 @@
 
     <!-- ── Kie.ai ── -->
     <div id="kieBlock" style="display:none">
-      <div class="key-bar">
-        <button type="button" class="key-edit-btn" id="keyToggleKie" onclick="toggleKeyPanel('kie')">🔑 Kie.ai API Key <span class="key-badge miss" id="keyBadgeKie">⚠️ غير متوفر</span></button>
-      </div>
       <div class="key-panel" id="keyPanelKie">
         <div class="ai-key-row">
           <input type="password" class="ai-key-in" id="kieKeyIn" placeholder="kie_..." oninput="checkTrReady()">
