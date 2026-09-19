@@ -96,14 +96,10 @@ export function saveKieApiKey(){
   setKeyPanelOpen('kie', false);
   checkTrReady();
 }
-export function saveWhisperModel(){
-  const m = document.getElementById('whisperModelSel').value;
-  localStorage.setItem('whisper_model', m);
-  toast(`تم تفعيل: ${m.includes('turbo') ? 'Whisper Turbo' : 'Whisper Large الدقيق'}`,'⚡');
-}
-export function saveDialectPref(){
-  const d = document.getElementById('trDialect').value;
-  localStorage.setItem('tr_dialect', d);
+export function saveTargetLangPref(){
+  const safe = document.getElementById('trTargetLang');
+  if(!safe) return;
+  try { localStorage.setItem('tr_target_lang', safe.value); } catch(_) {}
 }
 
 /* ═══════════════ تبديل مزود الترجمة ═══════════════ */

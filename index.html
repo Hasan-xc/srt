@@ -15,7 +15,7 @@
 <header>
   <div class="header-top">
     <button type="button" class="drawer-btn" id="drawerBtn" onclick="toggleDrawer()">📑 مشاريعي</button>
-    <div class="badge"><span class="bdot"></span>تفريغ صوتي + تحسين + ترجمة آلية للعربية</div>
+    <div class="badge"><span class="bdot"></span>تفريغ صوتي + ترجمة آلية</div>
   </div>
   <h1><em>التفريغ الصوتي</em> <span>والترجمة الذكية</span></h1>
   <p class="sub">Groq Whisper + OpenRouter / Kie.ai (GPT-5.6 & Gemini 2.5)</p>
@@ -34,16 +34,15 @@
 <div id="aiPanel">
   <div class="ai-head" onclick="toggleAiBody()">
     <span style="font-size:18px">🤖</span>
-    <span class="ai-head-title">محركات الذكاء الاصطناعي — تفريغ، تدقيق، وترجمة</span>
+    <span class="ai-head-title">محركات الذكاء الاصطناعي — تفريغ وترجمة</span>
     <span style="font-size:12px;color:var(--t2)" id="aiHeadArrow">▼</span>
   </div>
   <div class="ai-body" id="aiBody" style="display:none">
 
-    <!-- ═══ القسم الأول: التفريغ الصوتي (Groq) ═══ -->
-    <div style="font-size:12px;font-weight:700;color:var(--pu);margin-bottom:6px">🎙️ 1) التفريغ الصوتي — Groq Whisper</div>
+    <!-- ═══ القسم الأول: التفريغ الصوتي ═══ -->
+    <div style="font-size:12px;font-weight:700;color:var(--pu);margin-bottom:6px">🎙️ 1) التفريغ الصوتي</div>
     <div class="key-bar">
-      <div style="font-size:11px;color:var(--t2)">🔑 Groq API Key (من console.groq.com)</div>
-      <button type="button" class="key-edit-btn" id="keyToggleGroq" onclick="toggleKeyPanel('groq')">⚙️ تعديل المفتاح <span class="key-badge miss" id="keyBadgeGroq">⚠️ غير متوفر</span></button>
+      <button type="button" class="key-edit-btn" id="keyToggleGroq" onclick="toggleKeyPanel('groq')">🔑 Groq API Key <span class="key-badge miss" id="keyBadgeGroq">⚠️ غير متوفر</span></button>
     </div>
     <div class="key-panel" id="keyPanelGroq">
       <div class="ai-key-row">
@@ -82,28 +81,6 @@
       <button class="ai-extract-cancel" id="aiExtractCancelBtn" onclick="cancelExtraction()">✕ إلغاء</button>
     </div>
 
-    <div class="ai-opts-row">
-      <select class="ai-select" id="whisperModelSel" onchange="saveWhisperModel()">
-        <option value="whisper-large-v3-turbo" selected>⚡ سريع (Whisper Large V3 Turbo)</option>
-        <option value="whisper-large-v3">🎯 دقيق (Whisper Large V3 الأصلي)</option>
-      </select>
-
-      <select class="ai-select" id="aiLangIn">
-        <option value="auto">🌐 لغة الصوت: تعرف تلقائي</option>
-        <option value="tr" selected>🇹🇷 تركي</option>
-        <option value="ar">🇸🇦 عربي</option>
-        <option value="en">🇺🇸 إنجليزي</option>
-        <option value="es">🇪🇸 إسباني</option>
-        <option value="fr">🇫🇷 فرنسي</option>
-        <option value="de">🇩🇪 ألماني</option>
-        <option value="ru">🇷🇺 روسي</option>
-        <option value="ur">🇵🇰 أوردو</option>
-        <option value="hi">🇮🇳 هندي</option>
-        <option value="ja">🇯🇵 ياباني</option>
-        <option value="zh">🇨🇳 صيني</option>
-      </select>
-    </div>
-
     <div class="ai-controls" id="ctrlStartBox">
       <button class="ai-run-btn" id="aiRunBtn" onclick="startAi()" disabled>
         <span>✨</span><span>بدء التفريغ الصوتي (SRT)</span>
@@ -131,8 +108,8 @@
     <!-- ═══ فاصل ═══ -->
     <div class="section-divider" data-label="AI TOOLS & TRANSLATION"></div>
 
-    <!-- ═══ القسم الثاني: الترجمة وتحسين النص ═══ -->
-    <div style="font-size:12px;font-weight:700;color:var(--or);margin-bottom:6px">🌍 2) الترجمة الذكية وتدقيق النصوص</div>
+    <!-- ═══ القسم الثاني: الترجمة الذكية ═══ -->
+    <div style="font-size:12px;font-weight:700;color:var(--or);margin-bottom:6px">🌍 2) الترجمة الذكية</div>
 
     <div class="provider-toggle">
       <button type="button" class="provider-btn active" id="provBtnOR" onclick="setTrProvider('openrouter')">🟣 OpenRouter</button>
@@ -142,14 +119,12 @@
     <!-- ── قاموس المصطلحات الثابتة ── -->
     <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center">
       <button type="button" class="btn b-pu b-sm" onclick="toggleGlossary()">📖 قاموس المصطلحات</button>
-      <span style="font-size:10px;color:var(--t3)">يُلزِم الموديل بترجمات ثابتة للمصطلحات المضافة عند الترجمة فقط</span>
     </div>
 
     <!-- ── OpenRouter ── -->
     <div id="orBlock">
       <div class="key-bar">
-        <div style="font-size:11px;color:var(--t2)">🔑 OpenRouter API Key (من openrouter.ai/keys)</div>
-        <button type="button" class="key-edit-btn" id="keyToggleOr" onclick="toggleKeyPanel('or')">⚙️ تعديل المفتاح <span class="key-badge miss" id="keyBadgeOr">⚠️ غير متوفر</span></button>
+        <button type="button" class="key-edit-btn" id="keyToggleOr" onclick="toggleKeyPanel('or')">🔑 OpenRouter API Key <span class="key-badge miss" id="keyBadgeOr">⚠️ غير متوفر</span></button>
       </div>
       <div class="key-panel" id="keyPanelOr">
         <div class="ai-key-row">
@@ -162,8 +137,7 @@
     <!-- ── Kie.ai ── -->
     <div id="kieBlock" style="display:none">
       <div class="key-bar">
-        <div style="font-size:11px;color:var(--t2)">🔑 Kie.ai API Key (من kie.ai/api-key)</div>
-        <button type="button" class="key-edit-btn" id="keyToggleKie" onclick="toggleKeyPanel('kie')">⚙️ تعديل المفتاح <span class="key-badge miss" id="keyBadgeKie">⚠️ غير متوفر</span></button>
+        <button type="button" class="key-edit-btn" id="keyToggleKie" onclick="toggleKeyPanel('kie')">🔑 Kie.ai API Key <span class="key-badge miss" id="keyBadgeKie">⚠️ غير متوفر</span></button>
       </div>
       <div class="key-panel" id="keyPanelKie">
         <div class="ai-key-row">
@@ -186,10 +160,14 @@
         <option value="Hindi">🇮🇳 من الهندية</option>
       </select>
 
-      <select class="ai-select" id="trDialect" onchange="saveDialectPref()">
-        <option value="fusha" selected>📖 عربية فصحى</option>
-        <option value="shami">🇸🇾 عربية سورية / شامية</option>
-        <option value="masri">🇪🇬 عربية مصرية</option>
+      <select class="ai-select" id="trTargetLang" onchange="saveTargetLangPref()">
+        <option value="Arabic" selected>🇸🇦 العربية</option>
+        <option value="English">🇺🇸 الإنجليزية</option>
+        <option value="Turkish">🇹🇷 التركية</option>
+        <option value="Spanish">🇪🇸 الإسبانية</option>
+        <option value="French">🇫🇷 الفرنسية</option>
+        <option value="German">🇩🇪 الألمانية</option>
+        <option value="Russian">🇷🇺 الروسية</option>
       </select>
 
       <select class="ai-select" id="trModel">
@@ -359,7 +337,6 @@
         <span style="font-size:10px;color:var(--t2)">أقصى حروف</span>
         <input type="number" class="tb-shift-in" id="splitMaxIn" value="42" min="1" max="500" oninput="saveSplitLimit()">
       </div>
-      <button class="btn b-pu b-sm" id="aiEnhanceBtn" onclick="startAiEnhance()" title="تحسين الترجمة والتقسيم والتوقيت بالذكاء الاصطناعي">🤖 تحسين بـ AI</button>
     </div>
   </div>
 
@@ -388,7 +365,7 @@
       <button class="btn b-ghost b-sm" onclick="toggleGlossary()">✕ إغلاق</button>
     </div>
     <div class="glossary-body">
-      <div style="font-size:11px;color:var(--t2);margin-bottom:8px">تُحقن هذه الأزواج في برومبت الترجمة كتثبيت إلزامي (لا تؤثر على التدقيق). تُحفظ تلقائياً في متصفحك.</div>
+      <div style="font-size:11px;color:var(--t2);margin-bottom:8px">تُحقن هذه الأزواج في برومبت الترجمة كتثبيت إلزامي. تُحفظ تلقائياً في متصفحك.</div>
       <div id="glossaryList"></div>
       <div class="glossary-add">
         <input type="text" class="ai-key-in" id="glossFrom" placeholder="المصطلح الأصلي" style="min-width:0">

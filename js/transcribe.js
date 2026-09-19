@@ -440,8 +440,9 @@ async function prepareAndRunAi() {
 }
 
 async function executeChunksLoop(apiKey) {
-  const lang = document.getElementById('aiLangIn').value;
-  const model = document.getElementById('whisperModelSel').value || 'whisper-large-v3-turbo';
+  // التفريغ يعمل دائماً بموديل Whisper Large V3 الأصلي (المتوازن) مع
+  // كشف تلقائي للغة — بلا أي خيارات من الواجهة (أُزيلت القوائم).
+  const model = 'whisper-large-v3';
 
   while (aiCurrentChunk < aiTotalChunks) {
     if(aiIsPaused) break;
@@ -468,7 +469,6 @@ async function executeChunksLoop(apiKey) {
         fd.append('model', model);
         fd.append('response_format', 'verbose_json');
         fd.append('temperature', '0');
-        if(lang && lang !== 'auto') fd.append('language', lang);
 
         res = await apiRequest('GROQ_TRANSCRIBE', {
           method: 'POST',

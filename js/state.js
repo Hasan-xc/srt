@@ -14,7 +14,7 @@ export const state = {
   blocks: [],            // مصفوفة أسطر الترجمة الحالية {id, start, end, text}
   uid: 0,                // عدّاد المعرّفات الفريدة لكل سطر (id)
   activeRowId: null,     // معرّف السطر النشط حالياً في المحرر
-  currentTask: null,     // المهمة الجارية حالياً: 'translate' | 'refine' | null
+  currentTask: null,     // المهمة الجارية حالياً: 'translate' | null
   cancelRequested: false,// هل طلب المستخدم إيقاف المهمة الحالية؟
   videoURL: null         // رابط الفيديو الحالي (Object URL)
 };

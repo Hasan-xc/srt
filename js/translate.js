@@ -25,14 +25,12 @@ const BATCH_SIZE = 40;
 
 export function checkTrReady(){
   const btnTr = document.getElementById('trRunBtn');
-  const btnRef = document.getElementById('refineRunBtn');
   const hasKey = (state.trProvider === 'kie')
     ? !!document.getElementById('kieKeyIn').value.trim()
     : !!document.getElementById('orKeyIn').value.trim();
   const hasBlocks = state.blocks.length > 0;
 
   if(btnTr) btnTr.disabled = !(hasKey && hasBlocks && !state.currentTask);
-  if(btnRef) btnRef.disabled = !(hasKey && hasBlocks && !state.currentTask);
 }
 
 function setTrStatus(msg){ document.getElementById('trProgStatus').innerHTML = msg; }
@@ -148,7 +146,7 @@ function parseResponseJSON(content) {
   let arr = null;
   if (Array.isArray(parsed)) arr = parsed;
   else if (typeof parsed === 'object' && parsed !== null) {
-    arr = parsed.translations || parsed.refined || parsed.cleaned || parsed.result || parsed.data || parsed.output || parsed.lines || null;
+    arr = parsed.translations || parsed.result || parsed.data || parsed.output || parsed.lines || null;
     if (!arr) {
       const firstArr = Object.values(parsed).find(v => Array.isArray(v));
       if (firstArr) arr = firstArr;
@@ -167,15 +165,23 @@ function parseResponseJSON(content) {
    بناء البرومبتات
 ══════════════════════════════════════════════════════════════ */
 
-function buildTranslationPrompt(texts, srcLang, dialect) {
-  const sourceLabel = (srcLang === 'auto') ? 'the source language (auto-detect)' : srcLang;
+const TARGET_LANGS = {
+  'Arabic':   'Modern Standard Arabic (العربية الفصحى المعاصرة)',
+  'English':  'natural, fluent English (English)',
+  'Turkish':  'natural, fluent Turkish (Türkçe)',
+  'Spanish':  'natural, fluent Spanish (Español)',
+  'French':   'natural, fluent French (Français)',
+  'German':   'natural, fluent German (Deutsch)',
+  'Russian':  'natural, fluent Russian (Русский)'
+};
 
-  let styleDesc = 'Modern Standard Arabic (اللغة العربية الفصحى المعاصرة) - fluent, clean, and grammatically precise';
-  if(dialect === 'shami') {
-    styleDesc = 'Natural spontaneous Levantine / Syrian spoken Arabic (اللهجة الشامية / السورية المحكية العفوية). Use natural colloquial Syrian phrasing naturally';
-  } else if(dialect === 'masri') {
-    styleDesc = 'Natural spontaneous Egyptian spoken Arabic (اللهجة المصرية العامية الدارجة). Use authentic Egyptian phrasing naturally';
-  }
+function targetLangDesc(lang){
+  return TARGET_LANGS[lang] || TARGET_LANGS['Arabic'];
+}
+
+function buildTranslationPrompt(texts, srcLang, targetLang) {
+  const sourceLabel = (srcLang === 'auto') ? 'the source language (auto-detect)' : srcLang;
+  const targetDesc = targetLangDesc(targetLang);
 
   // قاموس المصطلحات: قاعدة إضافية رقم 6 فقط عند وجود أزواج محفوظة.
   // القاموس فارغ؟ البرومبت يبقى مطابقاً للأصل حرفياً (صفر تغيير سلوكي).
@@ -185,10 +191,11 @@ function buildTranslationPrompt(texts, srcLang, dialect) {
     : '';
 
   const systemPrompt =
-`You are an expert subtitle translator specialized in translating to ${styleDesc}.
+`You are a world-class subtitle translator. Translate the source text into ${targetDesc} with high linguistic accuracy, fluency and naturalness (not literal).
+Source language: ${sourceLabel}. Target language: ${targetLang}.
 
 STRICT RULES:
-1. Translate each subtitle line into the specified Arabic dialect/style naturally and contextually.
+1. Translate each subtitle line into ${targetDesc} naturally and contextually.
 2. Keep personal/brand names in their recognizable form.
 3. Keep the EXACT SAME number of items (${texts.length}), in the SAME order. Do NOT merge, split, or reorder.
 4. For empty strings, return "".
@@ -198,30 +205,7 @@ OUTPUT FORMAT:
 {"translations": ["line 1", "line 2", ...]}`;
 
   const userPrompt =
-`Translate the following ${texts.length} subtitle lines from ${sourceLabel} to ${styleDesc}:
-${JSON.stringify(texts, null, 2)}`;
-
-  return { systemPrompt, userPrompt };
-}
-
-function buildRefinementPrompt(texts) {
-  const systemPrompt =
-`You are an expert subtitle editor and proofreader.
-Your task is to refine and clean speech-to-text transcriptions WITHOUT changing the meaning or deleting essential information.
-
-STRICT RULES:
-1. Correct spelling, typo, and punctuation errors.
-2. Remove unintentional stuttering, false starts, and speech repetitions.
-3. Smooth out broken sentences with minimal edits.
-4. Standardize numbers and named entities.
-5. Keep the EXACT SAME number of items (${texts.length}), in the EXACT SAME order.
-6. Output ONLY a valid JSON object with key "refined" as an array of strings.
-
-OUTPUT FORMAT:
-{"refined": ["clean line 1", "clean line 2", ...]}`;
-
-  const userPrompt =
-`Refine and clean the following ${texts.length} subtitle lines:
+`Translate the following ${texts.length} subtitle lines from ${sourceLabel} to ${targetDesc}:
 ${JSON.stringify(texts, null, 2)}`;
 
   return { systemPrompt, userPrompt };
@@ -231,7 +215,7 @@ ${JSON.stringify(texts, null, 2)}`;
    تشغيل المهمة (ترجمة أو تحسين) على دفعات
 ══════════════════════════════════════════════════════════════ */
 
-async function runBatchAiTask(taskType) {
+async function runBatchAiTask() {
   const isKie = (state.trProvider === 'kie');
   const apiKey = isKie
     ? document.getElementById('kieKeyIn').value.trim()
@@ -239,22 +223,20 @@ async function runBatchAiTask(taskType) {
   if(!apiKey) return toast(isKie ? 'أدخل Kie.ai API Key' : 'أدخل OpenRouter API Key', '⚠️');
   if(state.blocks.length === 0) return toast('لا يوجد نص للمعالجة', '⚠️');
 
-  state.currentTask = taskType;
+  state.currentTask = 'translate';
   state.cancelRequested = false;
   switchTaskUI(true); checkTrReady();
   document.getElementById('trProgress').style.display = 'block';
   document.getElementById('trProgBar').style.width = '0%';
 
-  const srcLang = document.getElementById('trSrcLang').value;
-  const dialect = document.getElementById('trDialect').value;
-  const model   = isKie ? document.getElementById('trModelKie').value : document.getElementById('trModel').value;
+  const srcLang    = document.getElementById('trSrcLang').value;
+  const targetLang = document.getElementById('trTargetLang').value;
+  const model      = isKie ? document.getElementById('trModelKie').value : document.getElementById('trModel').value;
   // نقطة اتصال Kie ثابتة داخلياً (API_ENDPOINTS.KIE_RESPONSES) — الحقل حُذف من الواجهة
 
   const total = state.blocks.length;
   let doneCount = 0;
   let failedBatches = 0;
-
-  const taskLabel = taskType === 'refine' ? '✨ تحسين وتدقيق' : '🌍 ترجمة';
 
   try {
     for(let i = 0; i < total; i += BATCH_SIZE){
@@ -264,11 +246,9 @@ async function runBatchAiTask(taskType) {
       const batchBlocks = state.blocks.slice(i, batchEnd);
       const batchTexts = batchBlocks.map(b => b.text || '');
 
-      setTrStatus(`${taskLabel} الدفعة ${Math.floor(i/BATCH_SIZE)+1}/${Math.ceil(total/BATCH_SIZE)} &nbsp;•&nbsp; <span style="font-family:var(--mono);color:var(--yw)">${i+1} → ${batchEnd} من ${total}</span>`);
+      setTrStatus(`🌍 ترجمة الدفعة ${Math.floor(i/BATCH_SIZE)+1}/${Math.ceil(total/BATCH_SIZE)} &nbsp;•&nbsp; <span style="font-family:var(--mono);color:var(--yw)">${i+1} → ${batchEnd} من ${total}</span>`);
 
-      const promptData = (taskType === 'refine')
-        ? buildRefinementPrompt(batchTexts)
-        : buildTranslationPrompt(batchTexts, srcLang, dialect);
+      const promptData = buildTranslationPrompt(batchTexts, srcLang, targetLang);
 
       let translated = null;
       for(let attempt = 1; attempt <= 2; attempt++){
@@ -313,8 +293,8 @@ async function runBatchAiTask(taskType) {
       setTrStatus(`⚠️ اكتملت مع ${failedBatches} دفعة فاشلة`);
       toast(`اكتملت العملية (${failedBatches} دفعة فشلت)`,'⚠️');
     } else {
-      setTrStatus(`✅ اكتملت العملية بنجاح! (${total} سطر)`);
-      toast(taskType === 'refine' ? 'تم تحسين وتدقيق النصوص بنجاح!' : 'تمت الترجمة بنجاح!','🎉');
+      setTrStatus(`✅ اكتملت الترجمة بنجاح! (${total} سطر)`);
+      toast('تمت الترجمة بنجاح!','🎉');
     }
   } catch(err){
     console.error('AI Task Error:', err);
@@ -327,8 +307,7 @@ async function runBatchAiTask(taskType) {
   }
 }
 
-export function startTranslation(){ runBatchAiTask('translate'); }
-export function startTextRefinement(){ runBatchAiTask('refine'); }
+export function startTranslation(){ runBatchAiTask(); }
 
 /* ════════════════════════════════════════════════════════════════
    الاستدعاءات الفعلية (OpenRouter + Kie.ai)
@@ -336,8 +315,8 @@ export function startTextRefinement(){ runBatchAiTask('refine'); }
 
 /**
  * استدعاء OpenRouter chat/completions — يعيد النص المستخرج خاماً.
- * (مُصدَّرة كي تعيد الوحدات الأخرى استخدامها، مثل enhance.js — تحسين AI.
- *  executeOpenRouterRequest تغلّفها بتحليل JSON كما كان تماماً — سلوك مطابق).
+ * (مُصدَّرة كي تعيدها الوحدات الأخرى عند الحاجة — تغلّفها
+ *  executeOpenRouterRequest بتحليل JSON كما كان تماماً).
  *
  * التوافق: كثير من موديلات OpenRouter (Gemini وغيره) لا تدعم
  * response_format json_object وترفض الطلب بـ 400 — لذلك نحاول أولاً

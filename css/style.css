@@ -129,8 +129,8 @@ input[type=file]{display:none}
 .section-divider::after{ content:attr(data-label); position:absolute; top:-9px; right:16px; background:var(--s1); padding:1px 8px; font-size:10px; color:var(--t3); font-weight:700; letter-spacing:1px; }
 
 .tr-run-btn{ flex:2; min-height:44px;border:none;border-radius:10px; background:linear-gradient(135deg,var(--or),#cc6622); color:#fff;font-family:'Noto Naskh Arabic',serif; font-size:14px;font-weight:700;cursor:pointer; display:flex;align-items:center;justify-content:center;gap:6px; }
-.refine-run-btn{ flex:1; min-height:44px;border:none;border-radius:10px; background:linear-gradient(135deg,#7b5ea7,#523985); color:#fff;font-family:'Noto Naskh Arabic',serif; font-size:13px;font-weight:700;cursor:pointer; display:flex;align-items:center;justify-content:center;gap:6px; }
-.refine-run-btn:disabled, .tr-run-btn:disabled{background:var(--s3);color:var(--t3);cursor:default;}
+.tr-run-btn:disabled{background:var(--s3);color:var(--t3);cursor:default;}
+
 .provider-toggle{display:flex;gap:8px;margin-bottom:10px}
 .provider-btn{ flex:1;min-height:38px;border-radius:8px;border:1px solid var(--b2); background:var(--s2);color:var(--t2);font-family:'Noto Naskh Arabic',serif; font-size:12px;font-weight:700;cursor:pointer; display:flex;align-items:center;justify-content:center;gap:6px; transition:all .15s; }
 .provider-btn.active{background:var(--or);color:#1a0e04;border-color:var(--or)}
@@ -360,9 +360,6 @@ input[type=file]{display:none}
 .tb-replace-box .btn{ flex:0 0 auto; white-space:nowrap; min-height:30px; }
 .tb-search-box .tb-in{ flex:1 1 100%; min-width:0; }
 .tb-replace-box .tb-in{ flex:1; min-width:0; }
-
-/* ── زر «تحسين بـ AI»: واضح على الهاتف، لا يُضغط ولا يُقص على أي شاشة ── */
-#aiEnhanceBtn{ flex:0 0 auto; white-space:nowrap; min-height:34px; }
 
 /* ── صندوق «أقصى حروف» للتقسيم التلقائي للأسطر ── */
 .tb-split-box{ display:flex; align-items:center; gap:4px; flex:0 0 auto;
