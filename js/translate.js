@@ -17,7 +17,7 @@ import { state } from './state.js';
 import { toast } from './ui.js';
 import { renderCards } from './editor.js';
 import { captureHistory } from './history.js';
-import { apiRequest, API_ENDPOINTS } from './apiClient.js';
+import { apiRequest, API_ENDPOINTS } from './apiClient.js?v=2';
 import { getGlossaryPromptBlock } from './glossary.js';
 
 /* ═══════════════════════════════════════

@@ -40,7 +40,7 @@ import {
 import {
   checkTrReady, startTranslation,
   cancelAiTask, testKieConnection, retryMissingTranslation
-} from './translate.js';
+} from './translate.js?v=2';
 import { dlVTT } from './editor.js';
 import { initAutosave } from './autosave.js';
 import { initHistory, undoHistory, redoHistory } from './history.js';
