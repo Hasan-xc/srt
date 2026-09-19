@@ -40,6 +40,7 @@ let aiCurrentChunk    = 0;
 let aiIsRunning       = false;
 let aiIsPaused        = false;
 let aiChunkSeconds    = CHUNK_SECONDS; // يُعاد حسابه لكل ملف حسب حجمه الفعلي
+let aiDirectSend      = false; // ⚡ إرسال مباشر للملف الأصلي (صوت صغير ≤24MB) بلا فك تشفير/ضغط
 
 export function checkAiReady(){
   document.getElementById('aiRunBtn').disabled =
@@ -408,7 +409,14 @@ async function prepareAndRunAi() {
   document.getElementById('aiProgress').style.display = 'block';
 
   try {
-    if(!aiAudioBuffer) {
+    // ⚡ المسار السريع: ملف صوتي أصلي ≤24MB → يُرسل كما هو (بلا فك تشفير ولا ضغط MP3)
+    aiDirectSend = !!(aiFile && !isVideoFile(aiFile) && aiFile.size <= 24 * 1024 * 1024);
+
+    if(aiDirectSend){
+      aiTotalChunks = 1;
+      setStatus('⚡ ملف صغير — إرسال مباشر فوري (بلا فك تشفير ولا ضغط)');
+      document.getElementById('fnIn').value = aiFile.name.replace(/\.[^.]+$/,'');
+    } else if(!aiAudioBuffer) {
       aiAudioBuffer     = await decodeAudioFile(aiFile, setStatus);
       aiTotalDurationMs = aiAudioBuffer.duration * 1000;
 
@@ -446,22 +454,27 @@ async function executeChunksLoop(apiKey) {
   const MAX_ATTEMPTS = 3;         // إعادة محاولة عند ضعف الاتصال/الوقت الكامل
   const kbps = (typeof aiAudioQualityKbps === 'number' && aiAudioQualityKbps > 0) ? aiAudioQualityKbps : 48;
 
-  // تجهيز قائمة الأجزاء (نطاقات زمنية متراكمة لإزاحة التوقيت)
-  aiTotalChunks = Math.max(1, Math.round(aiAudioBuffer.duration / aiChunkSeconds));
-  if(aiAudioBuffer.duration > 0 && aiTotalChunks === 0) aiTotalChunks = 1     ;
-  const jobs = [];
-  for(let i = 0; i < aiTotalChunks; i++){
-    const startSec0 = i * aiChunkSeconds;
-    const endSec0   = Math.min(startSec0 + aiChunkSeconds, aiAudioBuffer.duration);
-    jobs.push({ index: i, start: startSec0, end: endSec0, offsetMs: Math.round(startSec0 * 1000) });
+  // تجهيز قائمة الأجزاء — أو المسار المباشر (جزء واحد = الملف الأصلي)
+  let jobs;
+  if(aiDirectSend){
+    aiTotalChunks = 1;
+    jobs = [{ index: 0, start: 0, end: 0, offsetMs: 0, direct: true }];
+  } else {
+    aiTotalChunks = Math.max(1, Math.ceil(aiAudioBuffer.duration / aiChunkSeconds));
+    jobs = [];
+    for(let i = 0; i < aiTotalChunks; i++){
+      const startSec0 = i * aiChunkSeconds;
+      const endSec0   = Math.min(startSec0 + aiChunkSeconds, aiAudioBuffer.duration);
+      jobs.push({ index: i, start: startSec0, end: endSec0, offsetMs: Math.round(startSec0 * 1000) });
+    }
   }
 
-  // جدولة تقدمية توضيحية (console.table)
+  // سجل تقدمي توضيحي (console.table)
   const chunkLog = [];
-  let chunkSeq = 0;
 
   // ترميز جزء إلى MP3 (الافتراضي مع lamejs) مع الاحتياطي WAV
   async function encodeChunk(job){
+    if(job.direct) return { blob: aiFile, usedMp3: true }; // ⚡ الملف الأصلي كما هو — صفر معالجة
     let { samples, sampleRate } = extractMonoChunk(aiAudioBuffer, job.start, job.end);
     if(sampleRate !== TARGET_SR) { samples = resampleTo16k(samples, sampleRate); sampleRate = TARGET_SR; }
     let blob = null, usedMp3 = true;
@@ -485,7 +498,10 @@ async function executeChunksLoop(apiKey) {
       const tid  = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
       try {
         const fd = new FormData();
-        fd.append('file', blob, `chunk_${String(job.index+1).padStart(3,'0')}_${usedMp3?'mp3':'wav'}`);
+        // ⚠️ الامتداد بنقطة إلزامية — Groq يستنتج النوع من الامتداد (chunk_001_mp3 كان يُرفض!)
+        const fname = job.direct ? (aiFile.name || 'audio.mp3')
+                                 : `chunk_${String(job.index+1).padStart(3,'0')}.${usedMp3 ? 'mp3' : 'wav'}`;
+        fd.append('file', blob, fname);
         fd.append('model', model);
         fd.append('response_format', 'verbose_json');
         fd.append('temperature', '0');
@@ -524,7 +540,7 @@ async function executeChunksLoop(apiKey) {
     }
 
     chunkLog.push({ 'الجزء': job.index+1, 'النطاق': formatMs(job.offsetMs).substring(0,8)+'→'+formatMs(Math.round(job.end*1000)).substring(0,8), 'الحالة': res?.ok ? '✅' : '❌', 'الحجم': (blob.size/1024).toFixed(0)+'KB', 'المحاولات': Math.min(MAX_ATTEMPTS, 3), 'الزمن': (attemptTimeMs/1000).toFixed(1)+'s', 'المدة': '20د' });
-    try { console.table(chunkLog); } catch(_){}
+    try { console.table([chunkLog[chunkLog.length - 1]]); } catch(_){}
 
     if(!res || !res.ok) throw new Error(lastErr || 'فشل إرسال الجزء');
 
@@ -578,7 +594,7 @@ async function executeChunksLoop(apiKey) {
       aiCurrentChunk = cursor;
       const pct = cursor / aiTotalChunks * 100;
       document.getElementById('aiProgBar').style.width = pct + '%';
-      document.getElementById('aiProgTxt').innerHTML = `🔄 ${cursor}/${aiTotalChunks} — ${Math.round(pct)}%`;
+      setStatus(`🔄 تفريغ ${cursor}/${aiTotalChunks} — ${Math.round(pct)}%`);
       renderCards();
     }
   }
