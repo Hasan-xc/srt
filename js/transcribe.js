@@ -414,7 +414,7 @@ async function prepareAndRunAi() {
 
     if(aiDirectSend){
       aiTotalChunks = 1;
-      setStatus('⚡ ملف صغير — إرسال مباشر فوري (بلا فك تشفير ولا ضغط)');
+      setStatus(`⚡ إرسال مباشر (${(aiFile.size/1048576).toFixed(1)}MB) — بلا فك تشفير ولا ضغط`);
       document.getElementById('fnIn').value = aiFile.name.replace(/\.[^.]+$/,'');
     } else if(!aiAudioBuffer) {
       aiAudioBuffer     = await decodeAudioFile(aiFile, setStatus);
@@ -450,7 +450,6 @@ async function prepareAndRunAi() {
 async function executeChunksLoop(apiKey) {
   const model = 'whisper-large-v3';
   const POOL = 3;                 // إرسال متوازٍ: 3 أجزاء في آنٍ واحد
-  const TIMEOUT_MS = 180000;      // مهلة لكل جزء (3 دقائق)
   const MAX_ATTEMPTS = 3;         // إعادة محاولة عند ضعف الاتصال/الوقت الكامل
   const kbps = (typeof aiAudioQualityKbps === 'number' && aiAudioQualityKbps > 0) ? aiAudioQualityKbps : 48;
 
@@ -491,11 +490,17 @@ async function executeChunksLoop(apiKey) {
   async function sendChunk(job){
     const { blob, usedMp3 } = await encodeChunk(job);
     let res = null, lastErr = '', attemptTimeMs = 0;
+    // ⏱️ مهلة ديناميكية: 45 ثانية لكل ميغابايت (حد أدنى 3 دقائق)
+    // رفع ~12MB من شبكة الجوال + معالجة Whisper قد يتجاوز 180s بسهولة
+    const sizeMB = Math.max(1, Math.ceil(blob.size / 1048576));
+    const baseTimeoutMs = Math.max(180000, sizeMB * 45000);
+    let attemptTimeoutMs = baseTimeoutMs;
     ADD: for(let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++){
       if(aiIsPaused) break;
       const startedAt = Date.now();
       const ctrl = new AbortController();
-      const tid  = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
+      attemptTimeoutMs = baseTimeoutMs * (1 + (attempt - 1) * 0.5); // كل محاولة أطول 50%
+      const tid  = setTimeout(() => ctrl.abort(), attemptTimeoutMs);
       try {
         const fd = new FormData();
         // ⚠️ الامتداد بنقطة إلزامية — Groq يستنتج النوع من الامتداد (chunk_001_mp3 كان يُرفض!)
@@ -531,7 +536,9 @@ async function executeChunksLoop(apiKey) {
           await new Promise(r => setTimeout(r, 800 * attempt));
         }
       } catch(err) {
-        lastErr = err?.name === 'AbortError' ? 'انتهت المهلة (180s)' : (err.message || 'خطأ في الاتصال');
+        lastErr = err?.name === 'AbortError'
+          ? `انتهت المهلة (${Math.round(attemptTimeoutMs/1000)}s) — ${sizeMB}MB على سرعة شبكتك، المحاولة التالية ستكون أطول`
+          : (err.message || 'خطأ في الاتصال');
         await new Promise(r => setTimeout(r, 1000 * attempt));
         attemptTimeMs = Date.now() - startedAt
       } finally {
@@ -539,7 +546,7 @@ async function executeChunksLoop(apiKey) {
       }
     }
 
-    chunkLog.push({ 'الجزء': job.index+1, 'النطاق': formatMs(job.offsetMs).substring(0,8)+'→'+formatMs(Math.round(job.end*1000)).substring(0,8), 'الحالة': res?.ok ? '✅' : '❌', 'الحجم': (blob.size/1024).toFixed(0)+'KB', 'المحاولات': Math.min(MAX_ATTEMPTS, 3), 'الزمن': (attemptTimeMs/1000).toFixed(1)+'s', 'المدة': '20د' });
+    chunkLog.push({ 'الجزء': job.index+1, 'النطاق': formatMs(job.offsetMs).substring(0,8)+'→'+formatMs(Math.round(job.end*1000)).substring(0,8), 'الحالة': res?.ok ? '✅' : '❌', 'الحجم': (blob.size/1024).toFixed(0)+'KB', 'المحاولات': Math.min(MAX_ATTEMPTS, 3), 'الزمن': (attemptTimeMs/1000).toFixed(1)+'s', 'المدة': job.direct ? 'مباشر' : 'جزء' });
     try { console.table([chunkLog[chunkLog.length - 1]]); } catch(_){}
 
     if(!res || !res.ok) throw new Error(lastErr || 'فشل إرسال الجزء');
