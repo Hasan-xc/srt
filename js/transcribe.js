@@ -489,7 +489,7 @@ async function executeChunksLoop(apiKey) {
         fd.append('model', model);
         fd.append('response_format', 'verbose_json');
         fd.append('temperature', '0');
-        fd.append('language', 'auto');
+        // ملاحظة: لا نرسل language — حذف الحقل = كشف تلقائي للغة (قيمة 'auto' غير صالحة وتسبب 400)
 
         res = await apiRequest('GROQ_TRANSCRIBE', {
           method: 'POST',
@@ -550,6 +550,7 @@ async function executeChunksLoop(apiKey) {
   const ordered = new Array(aiTotalChunks);
   let cursor = 0;   // أول جزء غير ملحق بعد
   let nextJob = 0;
+  let lastChunkErr = '';   // آخر رسالة خطأ لجزء فاشل (كانت مسببة ReferenceError)
 
   async function pump(){
     while(nextJob < jobs.length){
