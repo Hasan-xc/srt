@@ -19,18 +19,21 @@ import { renderCards } from './editor.js';
 import { apiRequest } from './apiClient.js';
 
 /* ════════════════════════════════════════════════════════════════
-   🎙️ GROQ WHISPER (Optimized 3-Min Chunks + Mobile Auto-Retry)
+   🎙️ GROQ WHISPER (20-Min Time Chunks + Direct Fast Path + Auto-Retry)
 ══════════════════════════════════════════════════════════════ */
 // رابط Groq أصبح مركزياً في apiClient.js (المفتاح: GROQ_TRANSCRIBE)
 const TARGET_SR      = 16000;
-const CHUNK_SECONDS  = 3 * 60; // احتياطي: يُستخدم فقط إذا تعذر حساب الحجم
 
-// ── تقسيم حسب حجم الملف (ميغابايت) بدل الوقت الثابت ──
-// الصوت يُحوَّل دائماً إلى WAV خام أحادي 16kHz/16-bit قبل الإرسال،
-// وحجمه = المدة (ثانية) × 32000 بايت/ثانية بالضبط (ثابت رياضياً).
-const BYTES_PER_SEC_16K_MONO = TARGET_SR * 2; // 32000 بايت/ثانية
-const SINGLE_SEND_LIMIT_MB   = 19; // لو الصوت كله أقل/يساوي هذا → إرسال دفعة واحدة
-const CHUNK_TARGET_MB        = 18; // حجم كل جزء عند التقسيم
+// ── الموديل ثابت واحد لأجل التفريغ كله (whisper-large-v3 المتوازن، كشف لغة تلقائي) ──
+const WHISPER_MODEL  = 'whisper-large-v3';
+
+// ── التقطيع زمني ثابت: 20 دقيقة لكل جزء (كما تعلن الواجهة) ──
+// كل جزء يُضغط MP3 48kbps → ≈7.2MB لكل 20 دقيقة (أقل بكثير من حد الخادم 25MB)
+const CHUNK_SECONDS  = 20 * 60;
+const CHUNK_SECONDS_WAV_FALLBACK = 18 * 1024 * 1024 / (TARGET_SR * 2); // ≈585ث إذا فشل lamejs (WAV خام ≤18MB)
+
+// حجم WAV الخام للمدة (ثابت رياضي: المدة × 32000 بايت/ثانية)
+const BYTES_PER_SEC_16K_MONO = TARGET_SR * 2;
 
 let aiFile            = null;
 let aiAudioBuffer     = null;
@@ -40,7 +43,11 @@ let aiCurrentChunk    = 0;
 let aiIsRunning       = false;
 let aiIsPaused        = false;
 let aiChunkSeconds    = CHUNK_SECONDS; // يُعاد حسابه لكل ملف حسب حجمه الفعلي
-let aiDirectSend      = false; // ⚡ إرسال مباشر للملف الأصلي (صوت صغير ≤24MB) بلا فك تشفير/ضغط
+let aiDirectSend      = false; // ⚡ إرسال الملف الأصلي كما هو (صوت ≤24MB و≤20د) بلا ضغط
+let aiGroqWaitUntil   = 0;     // ⏳ تبريد بعد 429 — يكافئ انخفاض التزامن إلى 1 خلال النافذة
+let aiInflight        = 0;     // عدد الطلبات الجارية فعلياً (لأجل الاستئناف الآمن)
+let aiActiveCtrls     = new Set(); // متحكمات الطلبات الحية — الإلغاء يجهضها
+let aiRunGen          = 0;     // جيل الجولة — الإلغاء يزيده فتموت عمال الجولات القديمة (لا يعيدون الإرسال بعد جولة جديدة)
 
 export function checkAiReady(){
   document.getElementById('aiRunBtn').disabled =
@@ -138,7 +145,7 @@ function audioBufferToWav(samples, sampleRate) {
    المسار 2 (fallback): FFmpeg.wasm عند فشل المسار الأول فقط
 ══════════════════════════════════════════════════════════════ */
 let aiOriginalVideoFile = null;
-let aiAudioQualityKbps  = 128;
+let aiAudioQualityKbps  = 48;  // مطابق للراديو الافتراضي (48 checked) في الواجهة
 let aiExtractRunning    = false;
 let aiExtractCancelled  = false;
 let aiExtractGen        = 0;
@@ -384,6 +391,7 @@ export function aiDownloadExtracted(){
 export async function startAi() {
   state.blocks = []; state.uid = 0; renderCards(); showEditor();
   aiCurrentChunk = 0; aiTotalDurationMs = 0; aiTotalChunks = 0; aiAudioBuffer = null;
+  aiRunGen++; aiIsPaused = false; aiGroqWaitUntil = 0; // جيل جديد — أي عمال قدامى يموتون
   await prepareAndRunAi();
 }
 export function pauseAi() {
@@ -391,9 +399,19 @@ export function pauseAi() {
   switchAiUI('paused');
   setStatus('⏸️ تم الإيقاف المؤقت');
 }
-export async function resumeAi() { await prepareAndRunAi(); }
+export async function resumeAi() {
+  // انتظار استقرار الطلبات الطائرة من الجولة المتوقفة (تُلحق نتائجها وتُحدَّث المؤشرات أولاً)
+  // — بدون هذا كانت الاستئناف يعيد إرسال أجزاء جارية/يكرر النتائج
+  while (aiInflight > 0) await new Promise(r => setTimeout(r, 40));
+  aiIsPaused = false;
+  await prepareAndRunAi();
+}
 export function cancelAi() {
   aiIsPaused = true; aiIsRunning = false; aiCurrentChunk = 0; aiAudioBuffer = null; aiChunkSeconds = CHUNK_SECONDS;
+  aiRunGen++; // جيل جديد — عمال الجولة الملغاة يموتون فور استيقاظهم (لا يعيدون الإرسال)
+  // ⏹️ إجهاض كل الطلبات الحية فعلياً (الخادم يرى الاتصالات مقطوعة)
+  for (const c of aiActiveCtrls) { try { c.abort(); } catch(_){} }
+  aiActiveCtrls.clear();
   switchAiUI('start');
   document.getElementById('aiProgress').style.display = 'none';
   toast('تم الإلغاء','⏹️');
@@ -409,29 +427,25 @@ async function prepareAndRunAi() {
   document.getElementById('aiProgress').style.display = 'block';
 
   try {
-    // ⚡ المسار السريع: ملف صوتي أصلي ≤24MB → يُرسل كما هو (بلا فك تشفير ولا ضغط MP3)
-    aiDirectSend = !!(aiFile && !isVideoFile(aiFile) && aiFile.size <= 24 * 1024 * 1024);
-
-    if(aiDirectSend){
-      aiTotalChunks = 1;
-      setStatus(`⚡ إرسال مباشر (${(aiFile.size/1048576).toFixed(1)}MB) — بلا فك تشفير ولا ضغط`);
-      document.getElementById('fnIn').value = aiFile.name.replace(/\.[^.]+$/,'');
-    } else if(!aiAudioBuffer) {
+    // نحتاج المدة دائماً → فك تشفير مرة واحدة (يقرر المسار المباشر والتقطيع)
+    if(!aiAudioBuffer) {
       aiAudioBuffer     = await decodeAudioFile(aiFile, setStatus);
       aiTotalDurationMs = aiAudioBuffer.duration * 1000;
 
-      // حساب الحجم المتوقع للصوت الكامل بعد التحويل لـ WAV 16kHz أحادي
-      const estTotalMB = (aiAudioBuffer.duration * BYTES_PER_SEC_16K_MONO) / (1024 * 1024);
+      // التقطيع زمني ثابت 20 دقيقة؛ وإذا تعذر lamejs → أجزاء WAV أصغر (≈585ث ≤18MB)
+      let lameOk = true;
+      try { await loadLamejs(); } catch(_) { lameOk = false; }
+      aiChunkSeconds = lameOk ? CHUNK_SECONDS : Math.floor(CHUNK_SECONDS_WAV_FALLBACK);
 
-      if (estTotalMB <= SINGLE_SEND_LIMIT_MB) {
-        // الصوت صغير بما يكفي → إرسال دفعة واحدة بدون تقسيم
+      if (aiAudioBuffer.duration <= aiChunkSeconds) {
         aiChunkSeconds = aiAudioBuffer.duration || 1;
-        toast(`📦 الحجم ${estTotalMB.toFixed(1)}MB — إرسال دفعة واحدة بدون تقسيم`, '✅');
+        // ⚡ المسار السريع: أصل صوتي ≤24MB يُرسل كما هو — بلا ضغط إطلاقاً
+        aiDirectSend = !isVideoFile(aiFile) && aiFile.size <= 24 * 1024 * 1024;
+        toast(`📦 المدة ${Math.round(aiAudioBuffer.duration/60)} دقيقة — إرسال دفعة واحدة${aiDirectSend ? ' مباشرة (بلا ضغط)' : ''}`, '✅');
       } else {
-        // تقسيم بحيث كل جزء ≈ 18MB
-        aiChunkSeconds = (CHUNK_TARGET_MB * 1024 * 1024) / BYTES_PER_SEC_16K_MONO;
+        aiDirectSend = false;
         const estChunks = Math.max(1, Math.ceil(aiAudioBuffer.duration / aiChunkSeconds));
-        toast(`📦 الحجم ${estTotalMB.toFixed(1)}MB — سيُقسَّم إلى ${estChunks} أجزاء (~${CHUNK_TARGET_MB}MB لكل جزء)`, 'ℹ️');
+        toast(`📦 المدة ${Math.round(aiAudioBuffer.duration/60)} دقيقة — سيُقسَّم إلى ${estChunks} أجزاء (~${Math.round(aiChunkSeconds/60)} دقيقة لكل جزء)`, 'ℹ️');
       }
 
       aiTotalChunks = Math.max(1, Math.ceil(aiAudioBuffer.duration / aiChunkSeconds));
@@ -448,7 +462,8 @@ async function prepareAndRunAi() {
 }
 
 async function executeChunksLoop(apiKey) {
-  const model = 'whisper-large-v3';
+  const myGen = aiRunGen; // جيل هذه الجولة — إن تغيّر (إلغاء/جولة جديدة) نموت فورًا
+
   const POOL = 3;                 // إرسال متوازٍ: 3 أجزاء في آنٍ واحد
   const MAX_ATTEMPTS = 3;         // إعادة محاولة عند ضعف الاتصال/الوقت الكامل
   const kbps = (typeof aiAudioQualityKbps === 'number' && aiAudioQualityKbps > 0) ? aiAudioQualityKbps : 48;
@@ -457,7 +472,7 @@ async function executeChunksLoop(apiKey) {
   let jobs;
   if(aiDirectSend){
     aiTotalChunks = 1;
-    jobs = [{ index: 0, start: 0, end: 0, offsetMs: 0, direct: true }];
+    jobs = [{ index: 0, start: 0, end: aiAudioBuffer ? aiAudioBuffer.duration : 0, offsetMs: 0, direct: true }];
   } else {
     aiTotalChunks = Math.max(1, Math.ceil(aiAudioBuffer.duration / aiChunkSeconds));
     jobs = [];
@@ -496,18 +511,24 @@ async function executeChunksLoop(apiKey) {
     const baseTimeoutMs = Math.max(180000, sizeMB * 45000);
     let attemptTimeoutMs = baseTimeoutMs;
     ADD: for(let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++){
-      if(aiIsPaused) break;
+      if(aiIsPaused || myGen !== aiRunGen) break;
       const startedAt = Date.now();
       const ctrl = new AbortController();
+      aiActiveCtrls.add(ctrl); // يُجهض تلقائياً عند cancelAi
       attemptTimeoutMs = baseTimeoutMs * (1 + (attempt - 1) * 0.5); // كل محاولة أطول 50%
       const tid  = setTimeout(() => ctrl.abort(), attemptTimeoutMs);
       try {
+        // ⏳ نافذة تبريد بعد 429 — كل الأجزاء تنتظر (= تزامن فعلي 1 خلال النافذة)
+        const cooldownMs = aiGroqWaitUntil - Date.now();
+        if (cooldownMs > 0) await new Promise(r => setTimeout(r, cooldownMs));
+        if (myGen !== aiRunGen) break;
+
         const fd = new FormData();
         // ⚠️ الامتداد بنقطة إلزامية — Groq يستنتج النوع من الامتداد (chunk_001_mp3 كان يُرفض!)
         const fname = job.direct ? (aiFile.name || 'audio.mp3')
                                  : `chunk_${String(job.index+1).padStart(3,'0')}.${usedMp3 ? 'mp3' : 'wav'}`;
         fd.append('file', blob, fname);
-        fd.append('model', model);
+        fd.append('model', WHISPER_MODEL);
         fd.append('response_format', 'verbose_json');
         fd.append('temperature', '0');
         // ملاحظة: لا نرسل language — حذف الحقل = كشف تلقائي للغة (قيمة 'auto' غير صالحة وتسبب 400)
@@ -518,31 +539,49 @@ async function executeChunksLoop(apiKey) {
           body: fd,
           signal: ctrl.signal
         });
-        attemptTimeMs = Date.now() - startedAt     ;
+        attemptTimeMs = Date.now() - startedAt;
         if(res.ok) break ADD;
 
         const status = res.status;
         if(status === 429 || status === 486) {
-          // ضغط الخادم — ننتظر قبل إعادة المحاولة
+          // ضغط الخادم — ننتظر قبل إعادة المحاولة ونفتح نافذة تبريد لكل الأجزاء
           const retryAfter = Number(res.headers?.get?.('retry-after') || 0);
+          const waitMs = (retryAfter || 2) * 1000 * attempt;
+          aiGroqWaitUntil = Math.max(aiGroqWaitUntil, Date.now() + waitMs);
           lastErr = `ضغط الخادم (HTTP ${status})`;
-          await new Promise(r => setTimeout(r, (retryAfter || 2) * 1000 * attempt  ));
+          await new Promise(r => setTimeout(r, waitMs));
+          if (myGen !== aiRunGen) break;
         } else if(status === 401 || status === 403) {
+          // رفض مرتبط بالموديل يفحص أولاً (قد يأتي بصيغة 403 أيضاً)
+          let dm = null; try { dm = await res.json(); } catch(_){}
+          const mMsg = dm?.error?.message || '';
+          if (/model/i.test(mMsg)) {
+            lastErr = 'الموديل غير مفعّل في حساب Groq — أضفه من Settings > Limits > Allowed Models';
+            break;
+          }
           lastErr = 'مفتاح API غير صالح أو منتهي';
           break; // لا فائدة من الإعادة
         } else {
           let d = null; try { d = await res.json(); } catch(_){}
           lastErr = d?.error?.message || `HTTP ${status}`;
+          // رفض مرتبط بالموديل (400/404 ونصه يذكر model) → رسالة واضحة بلا إعادة
+          if ((status === 400 || status === 404) && /model/i.test(lastErr)) {
+            lastErr = 'الموديل غير مفعّل في حساب Groq — أضفه من Settings > Limits > Allowed Models';
+            break;
+          }
           await new Promise(r => setTimeout(r, 800 * attempt));
+          if (myGen !== aiRunGen) break;
         }
       } catch(err) {
         lastErr = err?.name === 'AbortError'
           ? `انتهت المهلة (${Math.round(attemptTimeoutMs/1000)}s) — ${sizeMB}MB على سرعة شبكتك، المحاولة التالية ستكون أطول`
           : (err.message || 'خطأ في الاتصال');
         await new Promise(r => setTimeout(r, 1000 * attempt));
+        if (myGen !== aiRunGen) throw new Error('أُلغيت');
         attemptTimeMs = Date.now() - startedAt
       } finally {
         clearTimeout(tid);
+        aiActiveCtrls.delete(ctrl);
       }
     }
 
@@ -570,21 +609,27 @@ async function executeChunksLoop(apiKey) {
   }
 
   // تنفيذ متوازٍ مع ترتيب الإلحاق النهائي (يُحفظ بالترتيب مهما اختلفت سرعة الردود)
+  // ملاحظة الاستئناف: نكمل من aiCurrentChunk المحفوظ — الأجزاء المكتملة لا تُعاد
   const ordered = new Array(aiTotalChunks);
-  let cursor = 0;   // أول جزء غير ملحق بعد
-  let nextJob = 0;
+  let cursor = Math.min(aiCurrentChunk, aiTotalChunks);   // أول جزء غير ملحق بعد
+  let nextJob = cursor;
   let lastChunkErr = '';   // آخر رسالة خطأ لجزء فاشل (كانت مسببة ReferenceError)
 
   async function pump(){
     while(nextJob < jobs.length){
+      if(myGen !== aiRunGen) return;
       if(aiIsPaused) return;
       const job = jobs[nextJob++];
+      if(job.index < cursor) continue; // مكتمل سابقاً (استئناف) — لا يعاد
+      aiInflight++;
       try {
         const segs = await sendChunk(job);
         ordered[job.index] = segs || [];
       } catch(err) {
         ordered[job.index] = null; // علامة فشل
         lastChunkErr = err.message || 'فشل';
+      } finally {
+        aiInflight--;
       }
       // إلحاق متسلسل (ordered): نلحق كل الأجزاء المكتملة المتتالية
       while(cursor < aiTotalChunks){
@@ -601,7 +646,11 @@ async function executeChunksLoop(apiKey) {
       aiCurrentChunk = cursor;
       const pct = cursor / aiTotalChunks * 100;
       document.getElementById('aiProgBar').style.width = pct + '%';
-      setStatus(`🔄 تفريغ ${cursor}/${aiTotalChunks} — ${Math.round(pct)}%`);
+      // نطاق زمن آخر جزء أُلحق — داخل span باتجاه ltr كي تظهر الأرقام صحيحة في RTL
+      const doneJob = jobs[cursor - 1];
+      const oS = doneJob ? formatMs(doneJob.offsetMs).substring(0,8) : '';
+      const oE = doneJob ? formatMs(Math.round(doneJob.end * 1000)).substring(0,8) : '';
+      setStatus(`🔄 تفريغ ${cursor}/${aiTotalChunks} — ${Math.round(pct)}% &nbsp;•&nbsp; <span dir="ltr" style="font-family:var(--mono);color:var(--yw)">${oS} → ${oE}</span>`);
       renderCards();
     }
   }
@@ -610,15 +659,19 @@ async function executeChunksLoop(apiKey) {
   for(let w = 0; w < POOL; w++) workers.push(pump());
   await Promise.all(workers);
 
-  if(aiIsPaused) return; // سيُكمل عند الاستئناف
+  // إيقاف حقيقي (ما زالت أجزاء ناقصة) → يُكمل عند الاستئناف
+  if(aiIsPaused && aiCurrentChunk < aiTotalChunks) return;
 
   renderCards();
   if(aiCurrentChunk >= aiTotalChunks){
+    aiIsPaused = false; // اكتمل حتى لو صدر أمر إيقاف عند آخر جزء
     setStatus(`✅ اكتمل التفريغ الصوتي! (${state.blocks.length} مقطع)`);
     aiAudioBuffer = null;
     switchAiUI('start');
-    aiIsRunning = false; aiCurrentChunk = 0; aiIsPaused = false;
-    toast('😅 SRT جاهز! يمكنك الآن مراجعته أو ترجمته','🎉');
+    aiIsRunning = false;
+    // ⚠️ لا نصفر aiCurrentChunk هنا — الاستئناف بعد اكتمال أثناء الإيقاف يعتمد عليه
+    // (startAi يصفّره عند بدء تفريغ جديد على أي حال)
+    toast('SRT جاهز! يمكنك الآن مراجعته أو ترجمته','🎉');
   }
 }
 
@@ -651,6 +704,7 @@ export function initTranscribeEvents(){
     } else {
       // ── مسار الصوت: يعمل تمامًا كما كان ──
       aiOriginalVideoFile = null;
+      aiExtractCancelled = false; // كان true من resetExtractUI — كان يجعل كل ترميز MP3 يرمي CANCELLED ويسقط إلى WAV!
       document.getElementById('aiQualityBox').style.display = 'none';
       aiFile = f;
       checkAiReady();

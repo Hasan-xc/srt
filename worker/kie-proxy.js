@@ -50,7 +50,7 @@ async function handleRequest(request) {
   }
 
   if (request.method !== 'POST') {
-    return new Response('Method Not Allowed', { status: 405, headers: corsHeaders });
+    return new Response('Method Not Allowed', { status: 403, headers: corsHeaders });
   }
 
   const target = 'https://api.kie.ai/codex/v1/responses';

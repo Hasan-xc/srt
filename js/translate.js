@@ -38,6 +38,7 @@ const RETRY_DELAYS = [1000, 2000, 4000];  // تأخيرات الإعادة + jit
 ═══════════════════════════════════════ */
 let runAbort = null;      // AbortController مشترك — يقطع كل الطلبات الجارية دفعة واحدة
 let failedIds = [];       // معرّفات الأسطر التي فشلت نهائياً (زر إعادة الناقص)
+let lastHardErr = null;   // آخر خطأ صلب/شبكي — يُعرض في رسالة النهاية (كان يُبتلع)
 
 let adapt = { limit: CONCURRENCY, active: 0, okStreak: 0, saw429: false };
 let doneCount = 0;
@@ -393,7 +394,7 @@ export function parseResponseJSON(content, expectedCount){
 
 function toStringVal(v){
   if (typeof v === 'string') return v;
-  if (v && typeof v === 'object') return v.text || v.translation || v.value || String(v);
+  if (v && typeof v === 'object') return v.text || v.translation || v.value || ''; // لا String(v) — كان ينتج '[object Object]' ويُطبَّق خطأً
   return v == null ? '' : String(v);
 }
 
@@ -595,6 +596,7 @@ async function translateGroup(pending, ctx, depth){
       if (err && err.cancelled) return { applied, failed: [] };
       if (err && err.fatal) throw err;
       hardError = err;
+      lastHardErr = err;
     }
 
     const got = (!hardError && raw) ? (parseResponseJSON(raw, keysCount) || {}) : {};
@@ -676,6 +678,7 @@ async function runTask(targetIds){
 
   // إعادة ضبط سياق التشغيل
   failedIds = [];
+  lastHardErr = null;
   doneCount = 0;
   totalCount = 0;
   fatalMsg = null;
@@ -745,7 +748,7 @@ async function runTask(targetIds){
     setTrStatus(`⏹️ توقفت العملية — تُرجم فعلياً <b>${doneCount}</b> / ${totalCount} سطراً`);
     toast('تم إيقاف العملية','⏹️');
   } else if (failedIds.length) {
-    setTrStatus(`✅ اكتملت — تُرجم <b>${doneCount}</b> / ${totalCount} سطراً • <b style="color:var(--rd)">${failedIds.length}</b> خط ناقص 🔁`);
+    setTrStatus(`✅ اكتملت — تُرجم <b>${doneCount}</b> / ${totalCount} سطراً • <b style="color:var(--rd)">${failedIds.length}</b> خط ناقص 🔁${lastHardErr ? ` <span dir="ltr" style="color:var(--rd)">• ${lastHardErr.message || lastHardErr}</span>` : ''}`);
     toast(`اكتملت الترجمة (${failedIds.length} سطراً ناقصاً — أعد ترجمتها)`, '⚠️');
   } else {
     setTrStatus(`✅ اكتملت الترجمة بنجاح! (${doneCount} سطر)`);
