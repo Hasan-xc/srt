@@ -27,9 +27,28 @@
 <div class="page">
 
 <header>
-  <div class="header-top">
-    <button type="button" class="drawer-btn" id="drawerBtn" onclick="toggleDrawer()">📑 مشاريعي</button>
+  <div class="topbar">
+    <div class="brand" aria-label="SRT">
+      <svg viewBox="0 0 100 100" aria-hidden="true">
+        <rect width="100" height="100" rx="22" fill="#0f1420"/>
+        <rect x="60" y="30" width="26" height="5" rx="2.5" fill="#9b72f7"/>
+        <rect x="66" y="42" width="20" height="5" rx="2.5" fill="#9b72f7"/>
+        <rect x="60" y="54" width="26" height="5" rx="2.5" fill="#9b72f7" opacity="0.75"/>
+        <rect x="26" y="26" width="18" height="34" rx="9" fill="#4f8ef7"/>
+        <path d="M 20 46 A 15 15 0 0 0 50 46" fill="none" stroke="#4f8ef7" stroke-width="5" stroke-linecap="round"/>
+        <rect x="33" y="60" width="4" height="8" fill="#4f8ef7"/>
+        <rect x="26" y="68" width="18" height="4" rx="2" fill="#9b72f7"/>
+      </svg>
+      <span class="brand-name">SRT</span>
+    </div>
+    <button type="button" class="hamburger" id="menuBtn" aria-label="القائمة" aria-expanded="false">☰</button>
   </div>
+  <nav class="nav-menu" id="navMenu" hidden aria-label="القائمة الرئيسية">
+    <button type="button" class="nav-item" id="menuDrawer">📁 أعمالي المحفوظة</button>
+    <button type="button" class="nav-item" id="menuTextMode" hidden title="يُبنى لاحقاً">🎙️ تفريغ نصي</button>
+    <button type="button" class="nav-item" id="menuInstall" hidden>📲 تثبيت التطبيق</button>
+    <div class="nav-hint" id="iosInstallHint" hidden>💡 على الآيفون: زر المشاركة ← «إضافة إلى الشاشة الرئيسية»</div>
+  </nav>
   <h1><em>التفريغ الصوتي</em> <span>والترجمة الذكية</span></h1>
 </header>
 
