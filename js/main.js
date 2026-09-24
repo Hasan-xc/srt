@@ -103,6 +103,89 @@ try {
 /* ═══════════════════════════════════════
    التهيئة عند تحميل الصفحة
 ═════════════════════════════════════ */
+/* ═══════════════════════════════════════
+   قائمة الهيدر + زر «تثبيت التطبيق» (PWA)
+═══════════════════════════════════════ */
+let navMenuEl = null;
+
+function closeNavMenu(){
+  if (!navMenuEl) return;
+  navMenuEl.hidden = true;
+  const btn = document.getElementById('menuBtn');
+  if (btn) btn.setAttribute('aria-expanded', 'false');
+}
+
+function initNavMenu(){
+  navMenuEl = document.getElementById('navMenu');
+  const menuBtn = document.getElementById('menuBtn');
+  const menuDrawer = document.getElementById('menuDrawer');
+  const menuInstall = document.getElementById('menuInstall');
+  const iosHint = document.getElementById('iosInstallHint');
+  const textMode = document.getElementById('menuTextMode');
+  if (!navMenuEl || !menuBtn) return;
+
+  menuBtn.addEventListener('click', () => {
+    const open = navMenuEl.hidden;
+    navMenuEl.hidden = !open;
+    menuBtn.setAttribute('aria-expanded', String(open));
+  });
+  navMenuEl.addEventListener('click', (e) => e.stopPropagation());
+  menuBtn.addEventListener('click', (e) => e.stopPropagation());
+
+  // «أعمالي المحفوظة» — نفس الدروار الحالي بلا أي تغيير منطقه
+  if (menuDrawer) menuDrawer.addEventListener('click', () => {
+    closeNavMenu();
+    toggleDrawer();
+  });
+
+  // «تفريغ نصي» — مخفي حتى يُبنى مسار #/text لاحقاً
+  if (textMode) textMode.hidden = true;
+
+  // إغلاق بالنقر خارج القائمة
+  document.addEventListener('click', (e) => {
+    if (!navMenuEl.hidden && !navMenuEl.contains(e.target) && e.target !== menuBtn) closeNavMenu();
+  });
+  // إغلاق بـ Escape
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && navMenuEl && !navMenuEl.hidden) closeNavMenu();
+  });
+
+  /* ── زر التثبيت: يظهر فقط عند توفر beforeinstallprompt ── */
+  let deferredPrompt = null;
+  const isStandalone = () =>
+    window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  const isIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    if (!isStandalone() && menuInstall) menuInstall.hidden = false;
+  });
+
+  if (menuInstall) menuInstall.addEventListener('click', async () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') menuInstall.hidden = true;
+      deferredPrompt = null;
+    }
+    closeNavMenu();
+  });
+
+  // iOS لا يدعم beforeinstallprompt → إرشاد نصي (وليس في وضع standalone)
+  if (isIOS() && !isStandalone() && iosHint) iosHint.hidden = false;
+
+  // مُثبّت بالفعل → أخفِ كل ما يتعلق بالتثبيت
+  window.addEventListener('appinstalled', () => {
+    if (menuInstall) menuInstall.hidden = true;
+    if (iosHint) iosHint.hidden = true;
+  });
+  if (isStandalone()) {
+    if (menuInstall) menuInstall.hidden = true;
+    if (iosHint) iosHint.hidden = true;
+  }
+}
+
 window.addEventListener('DOMContentLoaded', () => {
   // ── استعادة المفاتيح المحفوظة ──
   const gk = localStorage.getItem('groq_api_key');
@@ -129,6 +212,9 @@ window.addEventListener('DOMContentLoaded', () => {
   initCoreEvents();
   initTranscribeEvents();
   initVideoEvents();
+
+  // ── قائمة الهيدر (همبرغر): فتح/إغلاق بالنقر خارجه أو Escape ──
+  try { initNavMenu(); } catch(e) { console.warn('nav menu:', e); }
 
   // ── تهيئة الميزات الإضافية — فشل أي منها لا يوقف الباقي ──
   try { initAutosave(); } catch(e) { console.warn('autosave init:', e); }
