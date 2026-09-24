@@ -113,8 +113,6 @@ export function setTrProvider(p){
   document.getElementById('kieBlock').style.display  = (p === 'kie') ? 'block' : 'none';
   document.getElementById('keyToggleOr').style.display  = (p === 'openrouter') ? '' : 'none';
   document.getElementById('keyToggleKie').style.display = (p === 'kie') ? '' : 'none';
-  document.getElementById('trModel').style.display    = (p === 'openrouter') ? '' : 'none';
-  document.getElementById('trModelKie').style.display = (p === 'kie') ? '' : 'none';
   checkTrReady();
 }
 

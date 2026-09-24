@@ -472,7 +472,7 @@ export async function executeKieRequest(promptData, model, apiKey, baseUrl){
 
   const bodyData = isChatCompletions
     ? {
-        model: model || 'gpt-5-6-luna',
+        model: 'gpt-6-luna',
         stream: false,
         messages: [
           { role: 'system', content: promptData.systemPrompt },
@@ -698,7 +698,7 @@ async function runTask(targetIds){
 
   const srcLang    = document.getElementById('trSrcLang').value;
   const targetLang = document.getElementById('trTargetLang').value;
-  const model      = isKie ? document.getElementById('trModelKie').value : document.getElementById('trModel').value;
+  const model      = 'gpt-6-luna'; // الموديل الأساسي الوحيد (نسخة kie.ai) — بلا قائمة منسدلة
   const ctx = { isKie, apiKey, model, srcLang, targetLang };
 
   const batches = buildBatches(candidates);
@@ -782,7 +782,7 @@ export async function retryMissingTranslation(){
 export async function testKieConnection() {
   const apiKey = document.getElementById('kieKeyIn').value.trim();
   const url = API_ENDPOINTS.KIE_RESPONSES;
-  const model = document.getElementById('trModelKie').value;
+  const model = 'gpt-6-luna'; // الموديل الأساسي الوحيد
 
   if (!apiKey) return toast('أدخل مفتاح Kie.ai أولاً', '⚠️');
 
