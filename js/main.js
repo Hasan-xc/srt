@@ -39,7 +39,7 @@ import {
 } from './transcribe.js';
 import {
   checkTrReady, startTranslation,
-  cancelAiTask, testKieConnection, retryMissingTranslation
+  cancelAiTask, retryMissingTranslation
 } from './translate.js?v=2';
 import { dlVTT } from './editor.js';
 import { initAutosave } from './autosave.js';
@@ -76,7 +76,7 @@ const globalApi = {
   aiPlayExtracted, aiDownloadExtracted,
   // translate (الترجمة)
   checkTrReady, startTranslation,
-  cancelAiTask, testKieConnection, retryMissingTranslation,
+  cancelAiTask, retryMissingTranslation,
   // ميزات إضافية (تراجع/إعادة، تصدير VTT، قاموس المصطلحات)
   undoHistory, redoHistory, dlVTT,
   toggleGlossary, addGlossaryPair, removeGlossaryPair,
