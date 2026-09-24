@@ -88,6 +88,19 @@ const globalApi = {
 Object.assign(window, globalApi);
 
 /* ═══════════════════════════════════════
+   تسجيل Service Worker (PWA) — فشله لا يوقف التطبيق
+═══════════════════════════════════════ */
+try {
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js').catch((e) => {
+        console.warn('sw register:', e && e.message);
+      });
+    });
+  }
+} catch (e) { console.warn('sw:', e && e.message); }
+
+/* ═══════════════════════════════════════
    التهيئة عند تحميل الصفحة
 ═════════════════════════════════════ */
 window.addEventListener('DOMContentLoaded', () => {
