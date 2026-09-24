@@ -18,11 +18,3 @@ export const state = {
   cancelRequested: false,// هل طلب المستخدم إيقاف المهمة الحالية؟
   videoURL: null         // رابط الفيديو الحالي (Object URL)
 };
-
-/**
- * تعديل الحالة (غير مستخدم بكثرة، موجود للتوضيح فقط).
- * الأجزاء الأخرى تكتب خصائص state مباشرة كما كان الكود الأصلي يفعل.
- */
-export function setState(partial) {
-  Object.assign(state, partial);
-}
