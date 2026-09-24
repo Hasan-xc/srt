@@ -47,7 +47,7 @@ import { initHistory, undoHistory, redoHistory } from './history.js';
 import { initGlossary, toggleGlossary, addGlossaryPair, removeGlossaryPair } from './glossary.js';
 import {
   toggleDrawer, closeDrawer, openDrawer, saveProjectAs, openProject,
-  deleteProject, clearAllProjects, initProjects, renderProjectsList
+  deleteProject, clearAllProjects, initProjects
 } from './projects.js';
 
 /* ═══════════════════════════════════════
