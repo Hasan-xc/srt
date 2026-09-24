@@ -44,17 +44,10 @@ body::before{
 }
 
 header{text-align:center;margin-bottom:16px}
-.badge{
-  display:inline-flex;align-items:center;gap:7px;
-  background:var(--s1);border:1px solid var(--b1);
-  border-radius:40px;padding:4px 12px; font-size:12px;color:var(--t2);margin-bottom:10px;
-}
-.bdot{width:7px;height:7px;border-radius:50%;background:var(--gr);box-shadow:0 0 6px var(--gr);animation:blink 2s infinite}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.35}}
 h1{font-size:clamp(19px,5vw,34px);font-weight:900;letter-spacing:-1px;line-height:1.2;margin-bottom:4px}
 h1 em{font-style:normal;color:var(--ac)}
 h1 span{color:var(--pu)}
-.sub{color:var(--t2);font-size:12px}
 
 .btn{
   display:inline-flex;align-items:center;justify-content:center;gap:6px;
@@ -137,7 +130,6 @@ input[type=file]{display:none}
 .tr-prog-bar{ height:100%;width:0%; background:linear-gradient(90deg,var(--or),var(--yw)); transition:width .3s ease;}
 .tr-prog-status{ font-size:12px;color:var(--or);margin-bottom:6px; display:flex;align-items:center;gap:6px; font-weight:bold;}
 
-.kie-test-box { background: var(--s2); border: 1px dashed var(--b2); border-radius: 8px; padding: 6px 10px; margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; gap: 6px; flex-wrap: wrap; }
 
 /* ═══════════════════════════════════════
    VIDEO SECTION & LIVE STYLING
@@ -308,7 +300,6 @@ input[type=file]{display:none}
 
 .save-bar{ background:var(--s2);border:1px solid var(--b1); border-radius:12px;padding:8px 10px; margin-top:10px;display:flex;gap:8px; }
 .fname-wrap{ display:flex;align-items:center;background:var(--s1); border:1px solid var(--b2);border-radius:8px; flex:1;min-width:0;}
-.fname-icon{padding:0 8px;font-size:13px;background:var(--s2);border-left:1px solid var(--b1);}
 .fname-in{ flex:1;background:transparent;border:none;color:var(--t1); font-size:12px;font-weight:600; padding:0 8px;direction:ltr;text-align:left;outline:none;}
 .fname-ext{padding:0 8px;font-family:var(--mono);font-size:11px;color:var(--ac);font-weight:600;background:var(--s2);border-right:1px solid var(--b1);}
 .dl-srt-btn{ background:var(--gr);color:#061a0e; border:none;border-radius:8px;padding:0 14px; font-family:'Noto Naskh Arabic',serif;font-size:13px;font-weight:700; cursor:pointer;min-height:38px; white-space:nowrap; }
@@ -367,7 +358,6 @@ input[type=file]{display:none}
 .tb-split-box .tb-shift-in{ width:38px; }
 
 /* ── أشرطة المفاتيح القابلة للطي (Accordion خفيف) ── */
-.key-bar{ display:flex; align-items:center; justify-content:space-between; gap:8px; margin:2px 0 8px; flex-wrap:wrap; }
 .key-edit-btn{ display:inline-flex; align-items:center; gap:6px; background:var(--s2); border:1px solid var(--b2);
   color:var(--t2); border-radius:8px; padding:5px 9px; font-size:11px; cursor:pointer; white-space:nowrap; min-height:30px; }
 .key-edit-btn:active{ transform:scale(.97); opacity:.85; }
