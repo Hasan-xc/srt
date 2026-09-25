@@ -42,7 +42,7 @@ import {
   cancelAiTask, retryMissingTranslation
 } from './translate.js?v=2';
 import { dlVTT } from './editor.js';
-import { initAutosave } from './autosave.js';
+import { initAutosave, saveDraftNow } from './autosave.js';
 import { initHistory, undoHistory, redoHistory } from './history.js';
 import { initGlossary, toggleGlossary, addGlossaryPair, removeGlossaryPair } from './glossary.js';
 import {
@@ -78,7 +78,7 @@ const globalApi = {
   checkTrReady, startTranslation,
   cancelAiTask, retryMissingTranslation,
   // ميزات إضافية (تراجع/إعادة، تصدير VTT، قاموس المصطلحات)
-  undoHistory, redoHistory, dlVTT,
+  undoHistory, redoHistory, dlVTT, saveDraftNow,
   toggleGlossary, addGlossaryPair, removeGlossaryPair,
   // القائمة الجانبية للمسودات والمشاريع
   toggleDrawer, closeDrawer, openDrawer, saveProjectAs, openProject,

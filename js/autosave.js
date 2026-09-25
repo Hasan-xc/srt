@@ -36,11 +36,12 @@ export function scheduleAutosave(){
  */
 export function saveDraftNow(){
   try {
-    if(!state.blocks.length) return;
+    if(!state.blocks.length) { toast('لا يوجد نص لحفظه بعد','⚠️'); return; }
     const payload = JSON.stringify({ savedAt: Date.now(), blocks: state.blocks });
-    if(payload === lastSavedJson) return; // لا كتابة إن لم يتغير شيء
+    if(payload === lastSavedJson) { toast('تم الحفظ 💾','💾'); return; } // محفوظ أصلاً
     localStorage.setItem(AUTOSAVE_KEY, payload);
     lastSavedJson = payload;
+    toast('تم الحفظ 💾','💾');
   } catch(_) {}
 }
 

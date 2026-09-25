@@ -13,8 +13,6 @@ import { state } from './state.js';
 import { formatMs, parseTimeStringToMs, fmtTimeShort, toStandardTime } from './time.js';
 import { toast } from './ui.js';
 import { updateSubOverlayLive } from './styling.js';
-import { scheduleAutosave } from './autosave.js';
-import { scheduleProjectAutosave } from './projects.js';
 import { captureHistory, scheduleTextCapture } from './history.js';
 
 /* ════════════════════════════════════════════════════════════════
@@ -118,7 +116,7 @@ export function renderCards(){
   });
 
   // نقاط ربط الميزات الإضافية (سجل التراجع + الحفظ التلقائي) — فشلها صامت
-  try { captureHistory(); scheduleAutosave(); scheduleProjectAutosave(); } catch(_) {}
+  try { captureHistory(); } catch(_) {}
 
   checkTrReady();
 }
@@ -154,7 +152,7 @@ export function onTextInput(id, el) {
     b.text = el.value;
     autoResizeTa(el);
     updateSubOverlayLive();
-    try { scheduleTextCapture(); scheduleAutosave(); scheduleProjectAutosave(); scheduleBadgeUpdate(id); } catch(_) {}
+    try { scheduleTextCapture(); scheduleBadgeUpdate(id); } catch(_) {}
   }
 }
 
@@ -171,7 +169,7 @@ export function onTimeInputChange(id, field, el) {
     b[field] = toStandardTime(el.value);
     el.value = fmtTimeShort(b[field]);
     updateSubOverlayLive();
-    try { captureHistory(); scheduleAutosave(); scheduleProjectAutosave(); scheduleBadgeUpdate(id); } catch(_) {}
+    try { captureHistory(); scheduleBadgeUpdate(id); } catch(_) {}
   }
 }
 
@@ -189,7 +187,7 @@ export function stepBlockTime(id, field, deltaMs) {
     if(field === 'end' && inputs[1]) inputs[1].value = fmtTimeShort(b.end);
   }
   updateSubOverlayLive();
-  try { captureHistory(); scheduleAutosave(); scheduleProjectAutosave(); scheduleBadgeUpdate(id); } catch(_) {}
+  try { captureHistory(); scheduleBadgeUpdate(id); } catch(_) {}
 }
 
 /* ═══════════════ عمليات السطر الواحد ═══════════════ */
