@@ -43,13 +43,22 @@
     </div>
     <button type="button" class="hamburger" id="menuBtn" aria-label="القائمة" aria-expanded="false">☰</button>
   </div>
-  <nav class="nav-menu" id="navMenu" hidden aria-label="القائمة الرئيسية">
-    <button type="button" class="nav-item" id="menuDrawer">📁 أعمالي المحفوظة</button>
-    <button type="button" class="nav-item" id="menuTextMode" hidden title="يُبنى لاحقاً">🎙️ تفريغ نصي</button>
-    <button type="button" class="nav-item" id="menuInstall" hidden>📲 تثبيت التطبيق</button>
-    <div class="nav-hint" id="iosInstallHint" hidden>💡 على الآيفون: زر المشاركة ← «إضافة إلى الشاشة الرئيسية»</div>
-  </nav>
 </header>
+
+<!-- ── قائمة الهمبرغر: Overlay عائم (خارج الهيدر — بلا أي إزاحة للصفحة) ── -->
+<div class="hamburger-overlay" id="hamburgerOverlay">
+  <aside class="hamburger-drawer" id="navMenu" role="dialog" aria-label="القائمة الرئيسية">
+    <div class="projects-head">
+      <span class="projects-title">القائمة</span>
+    </div>
+    <div class="projects-list">
+      <button type="button" class="nav-item" id="menuDrawer">📁 أعمالي المحفوظة</button>
+      <button type="button" class="nav-item" id="menuTextMode" hidden title="يُبنى لاحقاً">🎙️ تفريغ نصي</button>
+      <button type="button" class="nav-item" id="menuInstall" hidden>📲 تثبيت التطبيق</button>
+      <div class="nav-hint" id="iosInstallHint" hidden>💡 على الآيفون: زر المشاركة ← «إضافة إلى الشاشة الرئيسية»</div>
+    </div>
+  </aside>
+</div>
 
 <div class="card" id="inputCard">
   <div class="card-head"><span class="card-title">📋 الصق النص أو SRT هنا</span></div>

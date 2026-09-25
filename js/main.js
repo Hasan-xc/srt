@@ -104,51 +104,59 @@ try {
    التهيئة عند تحميل الصفحة
 ═════════════════════════════════════ */
 /* ═══════════════════════════════════════
-   قائمة الهيدر + زر «تثبيت التطبيق» (PWA)
+   قائمة الهمبرغر (Overlay off-canvas) + زر «تثبيت التطبيق» (PWA)
 ═══════════════════════════════════════ */
-let navMenuEl = null;
+let navOverlayEl = null;
+let navBtnEl = null;
 
-function closeNavMenu(){
-  if (!navMenuEl) return;
-  navMenuEl.hidden = true;
-  const btn = document.getElementById('menuBtn');
-  if (btn) { btn.setAttribute('aria-expanded', 'false'); btn.textContent = '☰'; }
+function navIsOpen(){ return !!navOverlayEl && navOverlayEl.classList.contains('on'); }
+
+function openNav(){
+  if (!navOverlayEl) return;
+  navOverlayEl.classList.add('on');
+  if (navBtnEl) { navBtnEl.textContent = '✕'; navBtnEl.setAttribute('aria-expanded','true'); }
+}
+
+function closeNav(){
+  if (!navOverlayEl) return;
+  navOverlayEl.classList.remove('on');
+  if (navBtnEl) { navBtnEl.textContent = '☰'; navBtnEl.setAttribute('aria-expanded','false'); }
 }
 
 function initNavMenu(){
-  navMenuEl = document.getElementById('navMenu');
-  const menuBtn = document.getElementById('menuBtn');
+  navOverlayEl = document.getElementById('hamburgerOverlay');
+  navBtnEl = document.getElementById('menuBtn');
   const menuDrawer = document.getElementById('menuDrawer');
   const menuInstall = document.getElementById('menuInstall');
   const iosHint = document.getElementById('iosInstallHint');
   const textMode = document.getElementById('menuTextMode');
-  if (!navMenuEl || !menuBtn) return;
+  if (!navOverlayEl || !navBtnEl) return;
 
-  menuBtn.addEventListener('click', () => {
-    const open = navMenuEl.hidden;       // true = كانت مغلقة → سنفتحها
-    navMenuEl.hidden = !open;
-    menuBtn.textContent = open ? '✕' : '☰';
-    menuBtn.setAttribute('aria-expanded', String(open));
+  // الزر ☰ نفسه = toggle، ويتحول إلى ✕ أثناء الفتح (نفس مكانه)
+  navBtnEl.addEventListener('click', (e) => {
+    e.stopPropagation();
+    navOverlayEl.classList.toggle('on');
+    const open = navOverlayEl.classList.contains('on');
+    navBtnEl.textContent = open ? '✕' : '☰';
+    navBtnEl.setAttribute('aria-expanded', String(open));
   });
-  navMenuEl.addEventListener('click', (e) => e.stopPropagation());
-  menuBtn.addEventListener('click', (e) => e.stopPropagation());
 
-  // «أعمالي المحفوظة» — نفس الدروار الحالي بلا أي تغيير منطقه
+  // «أعمالي المحفوظة» — نفس الدروار الحالي بلا أي تغيير منطقه (عنصران مستقلان)
   if (menuDrawer) menuDrawer.addEventListener('click', () => {
-    closeNavMenu();
+    closeNav();
     toggleDrawer();
   });
 
   // «تفريغ نصي» — مخفي حتى يُبنى مسار #/text لاحقاً
   if (textMode) textMode.hidden = true;
 
-  // إغلاق بالنقر خارج القائمة
-  document.addEventListener('click', (e) => {
-    if (!navMenuEl.hidden && !navMenuEl.contains(e.target) && e.target !== menuBtn) closeNavMenu();
+  // الإغلاق 1: النقر على الخلفية المعتمة نفسها
+  navOverlayEl.addEventListener('click', (e) => {
+    if (e.target === navOverlayEl) closeNav();
   });
-  // إغلاق بـ Escape
+  // الإغلاق 2: Escape
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && navMenuEl && !navMenuEl.hidden) closeNavMenu();
+    if (e.key === 'Escape' && navIsOpen()) closeNav();
   });
 
   /* ── زر التثبيت: يظهر فقط عند توفر beforeinstallprompt ── */
@@ -173,7 +181,7 @@ function initNavMenu(){
       if (outcome === 'accepted') menuInstall.hidden = true;
       deferredPrompt = null;
     }
-    closeNavMenu();
+    closeNav();
   });
 
   // iOS لا يدعم beforeinstallprompt → إرشاد نصي (وليس في وضع standalone)
@@ -184,7 +192,11 @@ function initNavMenu(){
     if (menuInstall) menuInstall.hidden = true;
     if (iosHint) iosHint.hidden = true;
   });
-  if (isStandalone()) {
+  
+  // iOS لا يدعم beforeinstallprompt → إرشاد نصي (وليس في وضع standalone)
+  if (isIOS() && !isStandalone() && iosHint) iosHint.hidden = false;
+
+if (isStandalone()) {
     if (menuInstall) menuInstall.hidden = true;
     if (iosHint) iosHint.hidden = true;
   }
