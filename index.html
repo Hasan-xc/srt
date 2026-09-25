@@ -143,16 +143,9 @@
     <!-- ═══ فاصل ═══ -->
     <div class="section-divider" data-label="AI TOOLS & TRANSLATION"></div>
 
-    <!-- ═══ القسم الثاني: الترجمة الذكية ═══ -->
+    <!-- ═══ القسم الثاني: الترجمة الذكية — Kie.ai فقط (الاختيار أُزل من الواجهة) ═══ -->
     <div class="ai-toggle-row">
       <div class="ai-toggle-title" style="color:var(--or)">🌍 2) الترجمة الذكية</div>
-      <button type="button" class="key-edit-btn" id="keyToggleOr" onclick="toggleKeyPanel('or')">🔑 OpenRouter API Key <span class="key-badge miss" id="keyBadgeOr">⚠️ غير متوفر</span></button>
-      <button type="button" class="key-edit-btn" id="keyToggleKie" onclick="toggleKeyPanel('kie')" style="display:none">🔑 Kie.ai API Key <span class="key-badge miss" id="keyBadgeKie">⚠️ غير متوفر</span></button>
-    </div>
-
-    <div class="provider-toggle">
-      <button type="button" class="provider-btn active" id="provBtnOR" onclick="setTrProvider('openrouter')">🟣 OpenRouter</button>
-      <button type="button" class="provider-btn" id="provBtnKie" onclick="setTrProvider('kie')">🔷 Kie.ai — GPT-5.6</button>
     </div>
 
     <!-- ── قاموس المصطلحات الثابتة ── -->
@@ -160,17 +153,7 @@
       <button type="button" class="btn b-pu b-sm" onclick="toggleGlossary()">📖 قاموس المصطلحات</button>
     </div>
 
-    <!-- ── OpenRouter ── -->
-    <div id="orBlock">
-      <div class="key-panel" id="keyPanelOr">
-        <div class="ai-key-row">
-          <input type="password" class="ai-key-in" id="orKeyIn" placeholder="sk-or-v1-..." oninput="checkTrReady()">
-          <button class="ai-key-save or" onclick="saveOrApiKey()">💾 حفظ</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- ── Kie.ai ── -->
+    <!-- ── مفتاح Kie.ai — مخفي من الرئيسية؛ يظهر تلقائياً فقط إذا المفتاح غير محفوظ ── -->
     <div id="kieBlock" style="display:none">
       <div class="key-panel" id="keyPanelKie">
         <div class="ai-key-row">

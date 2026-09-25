@@ -131,9 +131,11 @@ function kieFatalMessage(status, msg){
 ═══════════════════════════════════════ */
 export function checkTrReady(){
   const btnTr = document.getElementById('trRunBtn');
+  const kieIn = document.getElementById('kieKeyIn');
+  const orIn  = document.getElementById('orKeyIn'); // أُزيل من الواجهة (Kie.ai فقط) — يبقى المنطق سليماً
   const hasKey = (state.trProvider === 'kie')
-    ? !!document.getElementById('kieKeyIn').value.trim()
-    : !!document.getElementById('orKeyIn').value.trim();
+    ? !!(kieIn && kieIn.value.trim())
+    : !!(orIn && orIn.value.trim());
   const hasBlocks = state.blocks.length > 0;
   if (btnTr) btnTr.disabled = !(hasKey && hasBlocks && !state.currentTask);
 }

@@ -195,7 +195,7 @@ window.addEventListener('DOMContentLoaded', () => {
   const gk = localStorage.getItem('groq_api_key');
   if(gk) document.getElementById('aiKeyIn').value = gk;
   const ok = localStorage.getItem('openrouter_api_key');
-  if(ok) document.getElementById('orKeyIn').value = ok;
+  if(ok) { const oIn = document.getElementById('orKeyIn'); if(oIn) oIn.value = ok; } // الحقل أُزيل من الواجهة (Kie.ai فقط)
   const kk = localStorage.getItem('kie_api_key');
   if(kk) document.getElementById('kieKeyIn').value = kk;
   // نقطة اتصال Kie ثابتة داخلياً (API_ENDPOINTS) — حقل الإدخال حُذف من الواجهة
@@ -204,8 +204,20 @@ window.addEventListener('DOMContentLoaded', () => {
   const savedTargetLang = localStorage.getItem('tr_target_lang');
   if(savedTargetLang) document.getElementById('trTargetLang').value = savedTargetLang;
 
-  const savedProvider = localStorage.getItem('tr_provider');
-  if(savedProvider === 'kie') setTrProvider('kie');
+  // ── Kie.ai هو المزود الوحيد — يُفعّل تلقائياً عند كل تحميل ──
+  setTrProvider('kie');
+  {
+    const kieKey = localStorage.getItem('kie_api_key') ||
+                   (document.getElementById('kieKeyIn') || {}).value || '';
+    const kieBlock = document.getElementById('kieBlock');
+    if (kieKey.trim()) {
+      if (kieBlock) kieBlock.style.display = 'none';
+      try { setKeyPanelOpen('kie', false); } catch(e) {}
+    } else {
+      if (kieBlock) kieBlock.style.display = 'block';
+      try { setKeyPanelOpen('kie', true); } catch(e) {}
+    }
+  }
 
   loadSavedSubStyles();
   checkTrReady();

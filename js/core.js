@@ -94,6 +94,8 @@ export function saveKieApiKey(){
   localStorage.setItem('kie_api_key', k);
   toast('تم حفظ إعدادات Kie.ai','🔐');
   setKeyPanelOpen('kie', false);
+  const kb = document.getElementById('kieBlock');
+  if (kb) kb.style.display = 'none'; // المفتاح محفوظ → اللوحة مخفية من الرئيسية
   checkTrReady();
 }
 export function saveTargetLangPref(){
@@ -107,12 +109,17 @@ export function saveTargetLangPref(){
 export function setTrProvider(p){
   state.trProvider = p;
   localStorage.setItem('tr_provider', p);
-  document.getElementById('provBtnOR').classList.toggle('active', p === 'openrouter');
-  document.getElementById('provBtnKie').classList.toggle('active', p === 'kie');
-  document.getElementById('orBlock').style.display   = (p === 'openrouter') ? 'block' : 'none';
-  document.getElementById('kieBlock').style.display  = (p === 'kie') ? 'block' : 'none';
-  document.getElementById('keyToggleOr').style.display  = (p === 'openrouter') ? '' : 'none';
-  document.getElementById('keyToggleKie').style.display = (p === 'kie') ? '' : 'none';
+  // عناصر الواجهة أُزيلت من index.html (Kie.ai فقط الآن) — null-safe كي لا تكسر
+  const el = (id) => document.getElementById(id);
+  const provOR = el('provBtnOR'), provKie = el('provBtnKie');
+  if (provOR)  provOR.classList.toggle('active', p === 'openrouter');
+  if (provKie) provKie.classList.toggle('active', p === 'kie');
+  const orBlock = el('orBlock'), kieBlock = el('kieBlock');
+  if (orBlock)  orBlock.style.display  = (p === 'openrouter') ? 'block' : 'none';
+  if (kieBlock) kieBlock.style.display = (p === 'kie') ? 'block' : 'none';
+  const tOr = el('keyToggleOr'), tKie = el('keyToggleKie');
+  if (tOr)  tOr.style.display  = (p === 'openrouter') ? '' : 'none';
+  if (tKie) tKie.style.display = (p === 'kie') ? '' : 'none';
   checkTrReady();
 }
 
