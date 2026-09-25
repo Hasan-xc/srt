@@ -112,7 +112,7 @@ function closeNavMenu(){
   if (!navMenuEl) return;
   navMenuEl.hidden = true;
   const btn = document.getElementById('menuBtn');
-  if (btn) btn.setAttribute('aria-expanded', 'false');
+  if (btn) { btn.setAttribute('aria-expanded', 'false'); btn.textContent = '☰'; }
 }
 
 function initNavMenu(){
@@ -125,8 +125,9 @@ function initNavMenu(){
   if (!navMenuEl || !menuBtn) return;
 
   menuBtn.addEventListener('click', () => {
-    const open = navMenuEl.hidden;
+    const open = navMenuEl.hidden;       // true = كانت مغلقة → سنفتحها
     navMenuEl.hidden = !open;
+    menuBtn.textContent = open ? '✕' : '☰';
     menuBtn.setAttribute('aria-expanded', String(open));
   });
   navMenuEl.addEventListener('click', (e) => e.stopPropagation());
@@ -152,8 +153,11 @@ function initNavMenu(){
 
   /* ── زر التثبيت: يظهر فقط عند توفر beforeinstallprompt ── */
   let deferredPrompt = null;
-  const isStandalone = () =>
-    window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  const isStandalone = () => {
+    try {
+      return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    } catch (_) { return false; } // بيئات بلا matchMedia (webviews غريبة) — لا تكسر init
+  };
   const isIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
   window.addEventListener('beforeinstallprompt', (e) => {

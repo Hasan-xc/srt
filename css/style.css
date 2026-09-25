@@ -464,6 +464,7 @@ input[type=file]{display:none}
 .hamburger{ background:var(--s1); border:1px solid var(--b1); color:var(--t1); border-radius:var(--r); padding:7px 14px; font-size:18px; cursor:pointer; line-height:1; }
 .hamburger:active{ transform:scale(.96); opacity:.85; }
 .nav-menu{ display:flex; flex-direction:column; gap:3px; background:var(--s1); border:1px solid var(--b1); border-radius:var(--r); padding:8px; margin-top:8px; box-shadow:0 8px 24px rgba(0,0,0,.35); z-index:60; }
+.nav-menu[hidden]{ display:none; }
 .nav-item{ background:none; border:0; color:var(--t1); text-align:right; padding:11px 12px; border-radius:9px; font-size:14px; cursor:pointer; font-family:inherit; }
 .nav-item:hover{ background:var(--s2); }
 .nav-item[hidden]{ display:none; }
