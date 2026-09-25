@@ -479,3 +479,4 @@ input[type=file]{display:none}
   background:var(--s1); border-right:1px solid var(--b1); display:flex; flex-direction:column;
   transform:translateX(-100%); transition:transform .25s ease-out; box-shadow:8px 0 24px rgba(0,0,0,.4); }
 .hamburger-overlay.on .hamburger-drawer{ transform:translateX(0); }
+.hamburger-overlay[hidden]{ display:none; }

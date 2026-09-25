@@ -109,16 +109,18 @@ try {
 let navOverlayEl = null;
 let navBtnEl = null;
 
-function navIsOpen(){ return !!navOverlayEl && navOverlayEl.classList.contains('on'); }
+function navIsOpen(){ return !!navOverlayEl && !navOverlayEl.hidden; }
 
 function openNav(){
   if (!navOverlayEl) return;
+  navOverlayEl.hidden = false;
   navOverlayEl.classList.add('on');
   if (navBtnEl) { navBtnEl.textContent = '✕'; navBtnEl.setAttribute('aria-expanded','true'); }
 }
 
 function closeNav(){
   if (!navOverlayEl) return;
+  navOverlayEl.hidden = true;
   navOverlayEl.classList.remove('on');
   if (navBtnEl) { navBtnEl.textContent = '☰'; navBtnEl.setAttribute('aria-expanded','false'); }
 }
@@ -135,10 +137,7 @@ function initNavMenu(){
   // الزر ☰ نفسه = toggle، ويتحول إلى ✕ أثناء الفتح (نفس مكانه)
   navBtnEl.addEventListener('click', (e) => {
     e.stopPropagation();
-    navOverlayEl.classList.toggle('on');
-    const open = navOverlayEl.classList.contains('on');
-    navBtnEl.textContent = open ? '✕' : '☰';
-    navBtnEl.setAttribute('aria-expanded', String(open));
+    if (navOverlayEl.hidden) openNav(); else closeNav();
   });
 
   // «أعمالي المحفوظة» — نفس الدروار الحالي بلا أي تغيير منطقه (عنصران مستقلان)
